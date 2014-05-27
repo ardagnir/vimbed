@@ -25,27 +25,27 @@ endif
 let s:fromCommand = 0
 let s:vim_mode = "n"
 
-function! LoseTextbox()
+function! Shadowvim_LoseTextbox()
   ElGroup shadowvim!
 endfunction
 
 "Replacement for 'edit! s:file' that is undo joined (and doesn't leave the
 "scratch buffer)
-function! UndoJoinedEdit()
+function! Shadowvim_UndoJoinedEdit()
   undojoin | exec "normal! \<ESC>gg\"_dG"
   undojoin | exec "read ".s:file
   undojoin | normal! k"_dd
 endfunction
 
 function! Shadowvim_UpdateTextbox(lineStart, columnStart, lineEnd, columnEnd)
-  call s:VerySilent("call UndoJoinedEdit()")
+  call s:VerySilent("call Shadowvim_UndoJoinedEdit()")
   call cursor(a:lineStart, a:columnStart)
   call system("echo '' > ".s:metaFile)
   let s:vim_mode=''
 endfunction
 
 function! Shadowvim_FocusTextbox(lineStart, columnStart, lineEnd, columnEnd)
-  call s:VerySilent("call UndoJoinedEdit()")
+  call s:VerySilent("call Shadowvim_UndoJoinedEdit()")
 
   if a:lineStart==a:lineEnd && a:columnStart==a:columnEnd
     call cursor(a:lineStart, a:columnStart)
@@ -84,12 +84,12 @@ function! Shadowvim_FocusTextbox(lineStart, columnStart, lineEnd, columnEnd)
 
   ElGroup shadowvim
     ElSetting timer 2
-    ElCmd call CheckConsole()
-    ElCmd call OutputMessages()
+    ElCmd call Shadowvim_CheckConsole()
+    ElCmd call Shadowvim_OutputMessages()
   ElGroup END
 endfunction
 
-function! SetupShadowvim()
+function! Shadowvim_SetupShadowvim()
   set buftype=nofile
   set bufhidden=hide
   set noswapfile
@@ -214,7 +214,7 @@ function s:BetterShellEscape(text)
   return returnVal
 endfunction
 
-function! CheckConsole()
+function! Shadowvim_CheckConsole()
     let tempMode = mode()
     if tempMode == "c"
       call system('echo c > '.s:metaFile)
@@ -248,7 +248,7 @@ function! s:VerySilent(args)
 endfunction
 
 "This repeatedly flushes because messages aren't written until the redir ends.
-function! OutputMessages()
+function! Shadowvim_OutputMessages()
   redir END
   exec "redir! >> ".s:messageFile
 endfunction
