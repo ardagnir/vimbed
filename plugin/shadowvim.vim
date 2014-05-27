@@ -133,8 +133,8 @@ function! Shadowvim_SetupShadowvim()
 
     ElGroup shadowvim
       ElSetting timer 2
-      ElCmd call CheckConsole()
-      ElCmd call OutputMessages()
+      ElCmd call Shadowvim_CheckConsole()
+      ElCmd call Shadowvim_OutputMessages()
     ElGroup END
   catch
     call system('echo -e "e\nShadowvim requires eventloop.vim to read the VIM commandline. > '.s:metaFile)
