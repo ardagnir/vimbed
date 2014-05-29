@@ -89,12 +89,16 @@ function! Shadowvim_FocusTextbox(lineStart, columnStart, lineEnd, columnEnd)
   ElGroup END
 endfunction
 
-function! Shadowvim_SetupShadowvim()
-  set buftype=nofile
-  set bufhidden=hide
+function! Shadowvim_SetupShadowvim(path)
   set noswapfile
   set shortmess+=A
   set noshowmode
+  if a:path==""
+    set buftype=nofile
+    set bufhidden=hide
+  else
+    exec "edit ".a:path
+  endif
 
   "Vim seems to be inconsistent with arrowkey terminal codes, even for the same termtype. So
   "we're setting them manually.
