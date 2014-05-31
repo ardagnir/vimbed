@@ -34,12 +34,16 @@ function! Shadowvim_UndoJoinedEdit()
   undojoin | normal! k"_dd
 endfunction
 
-function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd)
+function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
   call s:VerySilent("call Shadowvim_UndoJoinedEdit()")
 
-  if a:lineStart==a:lineEnd && a:columnStart==a:columnEnd
-    call cursor(a:lineStart, a:columnStart)
+  call cursor(a:lineStart, a:columnStart)
 
+  if a:preserveMode
+    return
+  endif
+
+  if a:lineStart==a:lineEnd && a:columnStart==a:columnEnd
     if mode()=="n" || mode()=="v" || mode()=="V" || mode()=="s" || mode()=="S"
       if col('.')==a:columnStart
         call feedkeys("\<ESC>i\<C-G>u",'n')
@@ -50,7 +54,6 @@ function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd)
         call feedkeys("\<C-G>u",'n')
     endif
   else
-    call cursor(a:lineStart, a:columnStart+1)
     call feedkeys ("\<ESC>0",'n')
     if a:columnStart>1
       call feedkeys ((a:columnStart-1)."l",'n')
@@ -59,7 +62,7 @@ function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd)
     if a:columnEnd-a:columnStart > 1
       call feedkeys((a:columnEnd-a:columnStart-1)."l",'n')
     elseif a:columnStart-a:columnEnd > -1
-      call feedkeys((a:columnStart-a:columnEnd+1)."k",'n')
+      call feedkeys((a:columnStart-a:columnEnd+1)."h",'n')
     endif
     if a:lineEnd-a:lineStart > 0
       call feedkeys((a:lineEnd-a:lineStart)."j",'n')
