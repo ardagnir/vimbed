@@ -25,9 +25,6 @@ endif
 let s:fromCommand = 0
 let s:vim_mode = "n"
 
-function! Shadowvim_LoseTextbox()
-  ElGroup shadowvim!
-endfunction
 
 "Replacement for 'edit! s:file' that is undo joined (and doesn't leave the
 "scratch buffer)
@@ -37,14 +34,7 @@ function! Shadowvim_UndoJoinedEdit()
   undojoin | normal! k"_dd
 endfunction
 
-function! Shadowvim_UpdateTextbox(lineStart, columnStart, lineEnd, columnEnd)
-  call s:VerySilent("call Shadowvim_UndoJoinedEdit()")
-  call cursor(a:lineStart, a:columnStart)
-  call system("echo '' > ".s:metaFile)
-  let s:vim_mode=''
-endfunction
-
-function! Shadowvim_FocusTextbox(lineStart, columnStart, lineEnd, columnEnd)
+function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd)
   call s:VerySilent("call Shadowvim_UndoJoinedEdit()")
 
   if a:lineStart==a:lineEnd && a:columnStart==a:columnEnd
@@ -81,12 +71,6 @@ function! Shadowvim_FocusTextbox(lineStart, columnStart, lineEnd, columnEnd)
 
   call system("echo '' > ".s:metaFile)
   let s:vim_mode=''
-
-  ElGroup shadowvim
-    ElSetting timer 2
-    ElCmd call Shadowvim_CheckConsole()
-    ElCmd call Shadowvim_OutputMessages()
-  ElGroup END
 endfunction
 
 function! Shadowvim_SetupShadowvim(path)
