@@ -41,7 +41,7 @@ function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd)
     call cursor(a:lineStart, a:columnStart)
 
     if mode()=="n" || mode()=="v" || mode()=="V" || mode()=="s" || mode()=="S"
-      if a:columnStart<len(line('.'))+1
+      if col('.')==a:columnStart
         call feedkeys("\<ESC>i\<C-G>u",'n')
       else
         call feedkeys("\<ESC>a\<C-G>u",'n')
@@ -51,7 +51,6 @@ function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd)
     endif
   else
     call cursor(a:lineStart, a:columnStart+1)
-    "normal! v
     call feedkeys ("\<ESC>0",'n')
     if a:columnStart>1
       call feedkeys ((a:columnStart-1)."l",'n')
@@ -64,7 +63,6 @@ function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd)
     endif
     if a:lineEnd-a:lineStart > 0
       call feedkeys((a:lineEnd-a:lineStart)."j",'n')
-    "call cursor(a:lineEnd, a:columnEnd)
     endif
     call feedkeys("\<C-G>",'n')
   endif
