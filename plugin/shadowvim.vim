@@ -133,9 +133,9 @@ endfunction
 function! s:WriteFile()
   "Force vim to add trailing newline to empty files
   if line('$') == 1 && getline(1) == ''
-    call system('echo "" > '.s:file)
+    call s:VerySilent('!echo "" > '.s:file)
   else
-    exec 'write !cat > '.s:file
+    call s:VerySilent('write !cat > '.s:file)
   endif
 endfunction
 
