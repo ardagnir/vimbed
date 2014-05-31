@@ -104,10 +104,10 @@ function! Shadowvim_SetupShadowvim(path)
 
     "I'm piping through cat, because write! can still trigger vim's
     "clippy-style 'are you sure?' messages.
-    sil exec "sil autocmd TextChanged * call <SID>VerySilent('write !cat >".s:file."')"
+    sil exec "sil autocmd TextChanged * call <SID>WriteFile()"
 
     "Adding text in insert mode calls this, but not TextChangedI
-    sil exec "sil autocmd CursorMovedI * call <SID>VerySilent('write !cat >".s:file."')"
+    sil exec "sil autocmd CursorMovedI * call <SID>WriteFile()"
 
     sil exec "autocmd CursorMoved * call <SID>WriteMetaFile('".s:metaFile."', 0)"
     sil exec "autocmd CursorMovedI * call <SID>WriteMetaFile('".s:metaFile."', 0)"
@@ -128,7 +128,15 @@ function! Shadowvim_SetupShadowvim(path)
   catch
     call system('echo -e "e\nShadowvim requires eventloop.vim to read the VIM commandline. > '.s:metaFile)
   endtry
+endfunction
 
+function! s:WriteFile()
+  "Force vim to add trailing newline to empty files
+  if line('$') == 1 && getline(1) == ''
+    call system('echo "" > '.s:file)
+  else
+    exec 'write !cat > '.s:file
+  endif
 endfunction
 
 function! s:GetByteNum(pos)
