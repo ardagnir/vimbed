@@ -116,18 +116,11 @@ function! Shadowvim_SetupShadowvim(path)
     sil exec "autocmd InsertLeave * call <SID>WriteMetaFile('".s:metaFile."', 0)"
     sil exec "autocmd InsertChange * call <SID>WriteMetaFile('".s:metaFile."', 1)"
   augroup END
+endfunction
 
-  try
-    ElGroup! shadowvim
-
-    ElGroup shadowvim
-      ElSetting timer 2
-      ElCmd call Shadowvim_CheckConsole()
-      ElCmd call Shadowvim_OutputMessages()
-    ElGroup END
-  catch
-    call system('echo -e "e\nShadowvim requires eventloop.vim to read the VIM commandline. > '.s:metaFile)
-  endtry
+function! Shadowvim_Poll()
+  call s:CheckConsole()
+  call s:OutputMessages()
 endfunction
 
 function! s:WriteFile()
@@ -211,26 +204,13 @@ function s:BetterShellEscape(text)
   return returnVal
 endfunction
 
-function! Shadowvim_CheckConsole()
+function! s:CheckConsole()
     let tempMode = mode()
     if tempMode == "c"
       call system('echo c > '.s:metaFile)
       call system('echo '.s:BetterShellEscape(getcmdtype().getcmdline()).' >> '.s:metaFile)
       let s:vim_mode="c"
-      if s:fromCommand == 0
-        ElGroup shadowvim
-          "Same as 2 right now. This is for once eventloop can handle shorter time periods.
-          ElSetting timer 1
-        ElGroup END
-      endif
-      let s:fromCommand = 1
     else
-      if s:fromCommand
-        let s:fromCommand = 0
-        ElGroup shadowvim
-          ElSetting timer 2
-        ElGroup END
-      endif
       if tempMode != s:vim_mode
         call s:WriteMetaFile(s:metaFile, 0)
       endif
@@ -245,7 +225,7 @@ function! s:VerySilent(args)
 endfunction
 
 "This repeatedly flushes because messages aren't written until the redir ends.
-function! Shadowvim_OutputMessages()
+function! s:OutputMessages()
   redir END
   exec "redir! >> ".s:messageFile
 endfunction
