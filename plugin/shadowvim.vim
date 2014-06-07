@@ -30,7 +30,7 @@ let s:vim_mode = "n"
 "scratch buffer)
 function! Shadowvim_UndoJoinedEdit()
   undojoin | exec "normal! \<ESC>gg\"_dG"
-  undojoin | exec "read ".s:file
+  undojoin | exec "read ".s:GetContentsFile()
   undojoin | normal! k"_dd
 endfunction
 
@@ -74,7 +74,15 @@ function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd, prese
   let s:vim_mode=''
 endfunction
 
-function! Shadowvim_SetupShadowvim(path)
+function! s:GetContentsFile()
+  if s:includeTabs
+    return "/tmp/shadowvim/".tolower(v:servername)."/contents-".bufnr('%').".txt"
+  else
+    return s:file
+  endif
+endfunction
+
+function! Shadowvim_SetupShadowvim(path, options)
   set noswapfile
   set shortmess+=A
   set noshowmode
@@ -83,6 +91,12 @@ function! Shadowvim_SetupShadowvim(path)
     set bufhidden=hide
   else
     exec "edit ".a:path
+  endif
+
+  if index(split(a:options,","),"tabs")!=-1
+    let s:includeTabs=1
+  else
+    let s:includeTabs=0
   endif
 
   "Vim seems to be inconsistent with arrowkey terminal codes, even for the same termtype. So
@@ -97,6 +111,7 @@ function! Shadowvim_SetupShadowvim(path)
   let s:file = "/tmp/shadowvim/".tolower(v:servername)."/contents.txt"
   let s:metaFile = "/tmp/shadowvim/".tolower(v:servername)."/meta.txt"
   let s:messageFile = "/tmp/shadowvim/".tolower(v:servername)."/messages.txt"
+  let s:tabFile = "/tmp/shadowvim/".tolower(v:servername)."/tabs.txt"
 
   augroup shadowvim
     sil autocmd!
@@ -115,6 +130,10 @@ function! Shadowvim_SetupShadowvim(path)
     sil exec "autocmd InsertEnter * call <SID>WriteMetaFile('".s:metaFile."', 1)"
     sil exec "autocmd InsertLeave * call <SID>WriteMetaFile('".s:metaFile."', 0)"
     sil exec "autocmd InsertChange * call <SID>WriteMetaFile('".s:metaFile."', 1)"
+    if s:includeTabs
+      sil exec "autocmd BufEnter * call <SID>WriteTabFile()"
+      sil exec "autocmd TabEnter * call <SID>WriteTabFile()"
+    endif
   augroup END
 endfunction
 
@@ -126,9 +145,9 @@ endfunction
 function! s:WriteFile()
   "Force vim to add trailing newline to empty files
   if line('$') == 1 && getline(1) == ''
-    call s:VerySilent('!echo "" > '.s:file)
+    call s:VerySilent('!echo "" > '.s:GetContentsFile())
   else
-    call s:VerySilent('write !cat > '.s:file)
+    call s:VerySilent('write !cat > '.s:GetContentsFile())
   endif
 endfunction
 
@@ -194,6 +213,15 @@ function! s:WriteMetaFile(fileName, checkInsert)
     let s:lastCol = c
     let s:lastLine = l
   endif
+endfunction
+
+function s:WriteTabFile()
+  let output=bufnr('%')." ".tabpagenr()
+  for i in range(tabpagenr('$'))
+    let bufnum = tabpagebuflist(i+1)[0]
+    let output .= "\n".bufnum.":".s:BetterShellEscape(expand('#'.bufnum.":p"))
+  endfor
+  call system("echo -n '".output."' > ".s:tabFile)
 endfunction
 
 function s:BetterShellEscape(text)
