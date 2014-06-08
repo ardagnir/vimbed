@@ -215,13 +215,47 @@ function! s:WriteMetaFile(fileName, checkInsert)
   endif
 endfunction
 
+let s:tabsChanging=0
+
 function s:WriteTabFile()
+  if s:tabsChanging
+    return
+  endif
+
   let output=bufnr('%')." ".tabpagenr()
   for i in range(tabpagenr('$'))
     let bufnum = tabpagebuflist(i+1)[0]
     let output .= "\n".bufnum.":".s:BetterShellEscape(expand('#'.bufnum.":p"))
   endfor
   call system("echo -n '".output."' > ".s:tabFile)
+endfunction
+
+function! Shadowvim_UpdateTabs(activeTab, tabList)
+  let oldNumTabs=tabpagenr('$')
+  let s:tabsChanging=1
+  tablast
+
+  "Add new tabs
+  for path in a:tabList
+    if type(path)==1 "Is path a string?
+      exec "tabedit ".path
+    else "A passed in number means a buffer
+      exec "tabedit"
+      if path>=1
+        exec "b".path
+      endif
+    endif
+  endfor
+
+  "Delete old tabs
+  for i in range(oldNumTabs)
+    tabclose! 1
+  endfor
+
+  exec "tabnext ".a:activeTab
+
+  let s:tabsChanging=0
+  call s:WriteTabFile()
 endfunction
 
 function s:BetterShellEscape(text)
