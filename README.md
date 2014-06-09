@@ -5,7 +5,7 @@ Shadowvim is a Vim plugin for embedding Vim in other programs. Run Vim in the ba
 
 ##Projects that use Shadowvim
 - [Pterosaur](http://github.com/ardagnir/pterosaur) embeds vim in Firefox textboxes.
-- [Chalcogen](http://github.com/ardagnir/chalcogen) embeds vim in the Atom editor.
+- [Chalcogen](http://github.com/ardagnir/chalcogen) embeds vim in the Atom editor. *(Currently unstable)*
 
 
 ##Requirements
