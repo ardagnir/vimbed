@@ -28,14 +28,14 @@ let s:vim_mode = "n"
 
 "Replacement for 'edit! s:file' that is undo joined (and doesn't leave the
 "scratch buffer)
-function! Shadowvim_UndoJoinedEdit()
+function! Shadowvim_UndoJoinedEdit(file)
   undojoin | exec "normal! \<ESC>gg\"_dG"
-  undojoin | exec "read ".s:GetContentsFile()
+  undojoin | exec "read ".a:file
   undojoin | normal! k"_dd
 endfunction
 
 function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
-  call s:VerySilent("call Shadowvim_UndoJoinedEdit()")
+  call s:VerySilent("call Shadowvim_UndoJoinedEdit('".s:GetContentsFile()."')")
 
   call cursor(a:lineStart, a:columnStart)
 
@@ -230,9 +230,10 @@ function s:WriteTabFile()
   call system("echo -n '".output."' > ".s:tabFile)
 endfunction
 
-function! Shadowvim_UpdateTabs(activeTab, tabList)
+function! Shadowvim_UpdateTabs(activeTab, tabList, loadFiles)
   let oldNumTabs=tabpagenr('$')
   let s:tabsChanging=1
+  let currentFile=0
   tablast
 
   "Add new tabs
@@ -244,6 +245,13 @@ function! Shadowvim_UpdateTabs(activeTab, tabList)
       if path>=1
         exec "b".path
       endif
+    endif
+    if a:loadFiles
+      let fileName="/tmp/shadowvim/".tolower(v:servername)."/tabin-".currentFile.".txt"
+      call s:VerySilent("call Shadowvim_UndoJoinedEdit('".fileName."')")
+      call s:WriteFile()
+      call system("rm ".fileName)
+      let currentFile+=1
     endif
   endfor
 
