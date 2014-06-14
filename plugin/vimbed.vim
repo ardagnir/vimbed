@@ -1,4 +1,4 @@
-" Shadowvim
+" Vimbed
 " A plugin for embedding vim
 "
 " Copyright (C) 2014, James Kolb <jck1089@gmail.com>
@@ -18,7 +18,7 @@
 
 let g:save_cpo = &cpo
 set cpo&vim
-if exists("g:loaded_shadowvim")
+if exists("g:loaded_vimbed")
   finish
 endif
 
@@ -28,14 +28,14 @@ let s:vim_mode = "n"
 
 "Replacement for 'edit! s:file' that is undo joined (and doesn't leave the
 "scratch buffer)
-function! Shadowvim_UndoJoinedEdit(file)
+function! Vimbed_UndoJoinedEdit(file)
   undojoin | exec "normal! \<ESC>gg\"_dG"
   undojoin | exec "read ".a:file
   undojoin | normal! k"_dd
 endfunction
 
-function! Shadowvim_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
-  call s:VerySilent("call Shadowvim_UndoJoinedEdit('".s:GetContentsFile()."')")
+function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
+  call s:VerySilent("call Vimbed_UndoJoinedEdit('".s:GetContentsFile()."')")
 
   call cursor(a:lineStart, a:columnStart)
 
@@ -76,13 +76,13 @@ endfunction
 
 function! s:GetContentsFile()
   if s:includeTabs
-    return "/tmp/shadowvim/".tolower(v:servername)."/contents-".bufnr('%').".txt"
+    return "/tmp/vimbed/".tolower(v:servername)."/contents-".bufnr('%').".txt"
   else
     return s:file
   endif
 endfunction
 
-function! Shadowvim_SetupShadowvim(path, options)
+function! Vimbed_SetupVimbed(path, options)
   set noswapfile
   set shortmess+=A
   set noshowmode
@@ -108,12 +108,12 @@ function! Shadowvim_SetupShadowvim(path, options)
 
   snoremap <bs> <C-G>c
 
-  let s:file = "/tmp/shadowvim/".tolower(v:servername)."/contents.txt"
-  let s:metaFile = "/tmp/shadowvim/".tolower(v:servername)."/meta.txt"
-  let s:messageFile = "/tmp/shadowvim/".tolower(v:servername)."/messages.txt"
-  let s:tabFile = "/tmp/shadowvim/".tolower(v:servername)."/tabs.txt"
+  let s:file = "/tmp/vimbed/".tolower(v:servername)."/contents.txt"
+  let s:metaFile = "/tmp/vimbed/".tolower(v:servername)."/meta.txt"
+  let s:messageFile = "/tmp/vimbed/".tolower(v:servername)."/messages.txt"
+  let s:tabFile = "/tmp/vimbed/".tolower(v:servername)."/tabs.txt"
 
-  augroup shadowvim
+  augroup vimbed
     sil autocmd!
     sil autocmd FileChangedShell * echon ''
 
@@ -137,7 +137,7 @@ function! Shadowvim_SetupShadowvim(path, options)
   augroup END
 endfunction
 
-function! Shadowvim_Poll()
+function! Vimbed_Poll()
   call s:CheckConsole()
   call s:OutputMessages()
 endfunction
@@ -230,7 +230,7 @@ function s:WriteTabFile()
   call system("echo -n '".output."' > ".s:tabFile)
 endfunction
 
-function! Shadowvim_UpdateTabs(activeTab, tabList, loadFiles)
+function! Vimbed_UpdateTabs(activeTab, tabList, loadFiles)
   let oldNumTabs=tabpagenr('$')
   let s:tabsChanging=1
   let currentFile=0
@@ -247,8 +247,8 @@ function! Shadowvim_UpdateTabs(activeTab, tabList, loadFiles)
       endif
     endif
     if a:loadFiles
-      let fileName="/tmp/shadowvim/".tolower(v:servername)."/tabin-".currentFile.".txt"
-      call s:VerySilent("call Shadowvim_UndoJoinedEdit('".fileName."')")
+      let fileName="/tmp/vimbed/".tolower(v:servername)."/tabin-".currentFile.".txt"
+      call s:VerySilent("call Vimbed_UndoJoinedEdit('".fileName."')")
       call s:WriteFile()
       call system("rm ".fileName)
       let currentFile+=1
@@ -300,7 +300,7 @@ function! s:OutputMessages()
   exec "redir! >> ".s:messageFile
 endfunction
 
-let g:loaded_shadowvim = 1
+let g:loaded_vimbed = 1
 
 let &cpo = g:save_cpo
 unlet g:save_cpo
