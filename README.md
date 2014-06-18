@@ -3,12 +3,9 @@ Vimbed
 
 Vimbed is a Vim plugin for embedding Vim in other programs. Run Vim in the background using Vimbed to ease communication with external processes.
 
-*(Vimbed was previously refered to as shadowvim.)*
-
 ##Projects that use Vimbed
 - [Pterosaur](http://github.com/ardagnir/pterosaur) embeds Vim in Firefox textboxes.
 - [Chalcogen](http://github.com/ardagnir/chalcogen) embeds Vim in the Atom editor. *(Currently unstable)*
-
 
 ##Requirements
 - Vimbed requires Vim with +clientserver.
