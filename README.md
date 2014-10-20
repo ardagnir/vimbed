@@ -21,7 +21,7 @@ Install vimbed with your favorite plugin-manager. If you use pathogen:
 Note that vimbed won't be very useful without another process to communicate with.
 
 ##API
-Comming soon. Until then, see Pterosaur and Chalcogen for examples.
+Coming soon. Until then, see Pterosaur and Chalcogen for examples.
 
 ##License
 AGPL v3
