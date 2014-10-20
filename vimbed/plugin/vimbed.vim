@@ -138,8 +138,9 @@ function! Vimbed_SetupVimbed(path, options)
 endfunction
 
 function! Vimbed_Poll()
-  "WriteFile is only needed for games, shells, and other plugins that change
-  "text without user input. Feel free to remove it if you don't use these.
+  "WriteFile is only needed here for plugins that change the screen without
+  "user input (like games). Feel free to comment it out if you don't
+  "use them.
   call s:WriteFile()
 
   call s:CheckConsole()
