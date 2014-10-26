@@ -39,13 +39,30 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
 
   call cursor(a:lineStart, a:columnStart)
 
+  "This block of code handles unicode. Our input is in characters but vim
+  "deals in bytes.
+  let currentCol = a:columnStart
+  let theLine = getline(".")
+  if strlen(substitute(theLine,".", "x", "g")) < a:columnEnd
+    let afterText = 1
+    call cursor(a:lineStart, strlen(theLine)+1)
+  else
+    let afterText = 0
+    let actualColumn = strlen(substitute(strpart(theLine, 0, currentCol),".","x","g"))
+    while actualColumn < a:columnStart
+      let currentCol += a:columnStart - actualColumn
+      let actualColumn = strlen(substitute(strpart(theLine, 0, currentCol),".","x","g"))
+    endwhile
+    call cursor(a:lineStart, currentCol)
+  endif
+
   if a:preserveMode
     return
   endif
 
   if a:lineStart==a:lineEnd && a:columnStart==a:columnEnd
     if mode()=="n" || mode()=="v" || mode()=="V" || mode()=="s" || mode()=="S"
-      if col('.')==a:columnStart
+      if !afterText
         call feedkeys("\<ESC>i\<C-G>u",'n')
       else
         call feedkeys("\<ESC>a\<C-G>u",'n')
@@ -179,8 +196,13 @@ function! s:WriteMetaFile(fileName, checkInsert)
 
   let line1 = s:vim_mode."\\n"
 
-  let c = col('.')
   let l = line('.')
+  let theLine = getline('.')
+  let c = strlen(substitute(strpart(theLine, 0, col('.')), ".", "x", "g")) "gets chars instead of bytes
+  if col('.') > strlen(theLine)
+    let c += 1
+  endif
+
   let pos = s:GetByteNum('.')
   if s:vim_mode ==# 'v' || s:vim_mode ==# 's'
     if pos < s:lastPos
