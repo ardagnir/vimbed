@@ -5,6 +5,7 @@ Vimbed is a Vim plugin for embedding Vim in other programs. Run Vim in the backg
 
 ##Projects that use Vimbed
 - [Pterosaur](http://github.com/ardagnir/pterosaur) embeds Vim in Firefox textboxes.
+- [Athame](http://github.com/ardagnir/athame) patches GNU Readline to embed Vim in bash, gdb, python, etc. *(Currently in alpha)*
 - [Chalcogen](http://github.com/ardagnir/chalcogen) embeds Vim in the Atom editor. *(Currently unstable)*
 
 ##Requirements
