@@ -172,14 +172,6 @@ function! s:WriteFile()
   endif
 endfunction
 
-function! s:GetByteNum(pos)
-    return col(a:pos)+line2byte(line(a:pos))-1 
-endfunction
-
-let s:lastPos = 0
-let s:lastCol = 0
-let s:lastLine = 0
-
 function! s:WriteMetaFile(fileName, checkInsert)
   if a:checkInsert
     if v:insertmode ==? 'i'
@@ -203,41 +195,38 @@ function! s:WriteMetaFile(fileName, checkInsert)
     let c += 1
   endif
 
-  let pos = s:GetByteNum('.')
   if s:vim_mode ==# 'v' || s:vim_mode ==# 's'
-    if pos < s:lastPos
-      let line2 = (pos-1).",".(c-1).",".(l-1)."\\n"
-      let line3 = s:lastPos.",".s:lastCol.",".(s:lastLine-1)."\\n"
+    let vl = line('v')
+    let vLine = getline('v')
+    let vc = strlen(substitute(strpart(theLine, 0, col('v')), ".", "x", "g")) "gets chars instead of bytes
+    if l < vl || (l == vl && c < vc)
+      let line2 = "-,".(c-1).",".(l-1)."\\n"
+      let line3 = "-,".(vc).",".(vl-1)."\\n"
       call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
     else
-      let line2 = (s:lastPos-1).",".(s:lastCol-1).",".(s:lastLine-1)."\\n"
-      let line3 = pos.",".c.",".(l-1)."\\n"
+      let line2 = "-,".(vc-1).",".(vl-1)."\\n"
+      let line3 = "-,".c.",".(l-1)."\\n"
       call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
     endif
   elseif s:vim_mode ==# 'V' || s:vim_mode ==# 'S'
-    if pos < s:lastPos
-      let line2 = (line2byte(byte2line(pos))-1).",".0.",".(l-1)."\\n"
-      let line3 = (line2byte(byte2line(s:lastPos)+1)-1).",".0.",".s:lastLine."\\n"
+    let vl = line('v')
+    if l < vl
+      let line2 = "-,".0.",".(l-1)."\\n"
+      let line3 = "-,".0.",".(vl)."\\n"
       call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
     else
-      let line2 = (line2byte(byte2line(s:lastPos))-1).",".0.",".(s:lastLine-1)."\\n"
-      let line3 = (line2byte(byte2line(pos)+1)-1).",".0.",".l."\\n"
+      let line2 = "-,".0.",".(vl-1)."\\n"
+      let line3 = "-,".0.",".l."\\n"
       call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
     endif
   elseif (s:vim_mode == 'n' || s:vim_mode[0] == 'R') && getline('.')!=''
-    let line2 = (pos-1).",".(c-1).",".(l-1)."\\n"
-    let line3 = pos.",".c.",".(l-1)."\\n"
+    let line2 = "-,".(c-1).",".(l-1)."\\n"
+    let line3 = "-,".c.",".(l-1)."\\n"
     call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
-    let s:lastPos = pos
-    let s:lastCol = c
-    let s:lastLine = l
   else
-    let line2 = (pos-1).",".(c-1).",".(l-1)."\\n"
+    let line2 = "-,".(c-1).",".(l-1)."\\n"
     let line3 = line2
     call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
-    let s:lastPos = pos
-    let s:lastCol = c
-    let s:lastLine = l
   endif
 endfunction
 
