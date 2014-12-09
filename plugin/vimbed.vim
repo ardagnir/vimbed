@@ -144,7 +144,7 @@ function! Vimbed_SetupVimbed(path, options)
     sil exec "autocmd CursorMoved * call <SID>WriteMetaFile('".s:metaFile."', 0)"
     sil exec "autocmd CursorMovedI * call <SID>WriteMetaFile('".s:metaFile."', 0)"
 
-    sil exec "autocmd InsertEnter * call <SID>WriteMetaFile('".s:metaFile."', 1)"
+    sil exec "autocmd InsertEnter * call <SID>WriteMetaFile('".s:metaFile."', 1) | call <SID>TriggerStdout()"
     sil exec "autocmd InsertLeave * call <SID>WriteMetaFile('".s:metaFile."', 0)"
     sil exec "autocmd InsertChange * call <SID>WriteMetaFile('".s:metaFile."', 1)"
     if s:includeTabs
@@ -306,6 +306,12 @@ endfunction
 function! s:VerySilent(args)
   redir END
   silent exec a:args
+  exec "redir! >> ".s:messageFile
+endfunction
+
+function! s:TriggerStdout()
+  redir END
+  echo ''
   exec "redir! >> ".s:messageFile
 endfunction
 
