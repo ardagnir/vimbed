@@ -7,12 +7,12 @@
 " it under the terms of the GNU Affero General Public License as published by
 " the Free Software Foundation, either version 3 of the License, or
 " (at your option) any later version.
-" 
+"
 " This program is distributed in the hope that it will be useful,
 " but WITHOUT ANY WARRANTY; without even the implied warranty of
 " MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 " GNU Affero General Public License for more details.
-" 
+"
 " You should have received a copy of the GNU Affero General Public License
 " along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -25,6 +25,8 @@ endif
 let s:fromCommand = 0
 let s:vim_mode = "n"
 
+let s:columns = 85
+let s:lines = 85
 
 "Replacement for 'edit! s:file' that is undo joined (and doesn't leave the
 "scratch buffer)
@@ -34,7 +36,9 @@ function! Vimbed_UndoJoinedEdit(file)
   undojoin | normal! k"_dd
 endfunction
 
-function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
+function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, lines, columns, preserveMode)
+  let s:lines = &lines + a:lines - winheight(0)
+  let s:columns = &columns + a:columns - winwidth(0)
   call s:VerySilent("call Vimbed_UndoJoinedEdit('".s:GetContentsFile()."')")
 
   call cursor(a:lineStart, a:columnStart)
@@ -158,9 +162,11 @@ function! Vimbed_Poll()
   "WriteFile is only needed for games, shells, and other plugins that change
   "text without user input. Feel free to remove it if you don't use these.
   call s:WriteFile()
-
   call s:CheckConsole()
   call s:OutputMessages()
+  exec "set columns=".s:columns
+  exec "set lines=".s:lines
+
 endfunction
 
 function! s:WriteFile()
@@ -195,6 +201,8 @@ function! s:WriteMetaFile(fileName, checkInsert)
     let c += 1
   endif
 
+  let line4 = winwidth(0)."/".&columns.",".winheight(0)."/".&lines."\n"
+
   if s:vim_mode ==# 'v' || s:vim_mode ==# 's'
     let vl = line('v')
     let vLine = getline('v')
@@ -202,32 +210,35 @@ function! s:WriteMetaFile(fileName, checkInsert)
     if l < vl || (l == vl && c < vc)
       let line2 = "-,".(c-1).",".(l-1)."\\n"
       let line3 = "-,".(vc).",".(vl-1)."\\n"
-      call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+      call system('echo -e "'.line1.line2.line3.line4.'" > '.a:fileName)
     else
       let line2 = "-,".(vc-1).",".(vl-1)."\\n"
       let line3 = "-,".c.",".(l-1)."\\n"
-      call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+      call system('echo -e "'.line1.line2.line3.line4.'" > '.a:fileName)
     endif
   elseif s:vim_mode ==# 'V' || s:vim_mode ==# 'S'
     let vl = line('v')
     if l < vl
       let line2 = "-,".0.",".(l-1)."\\n"
       let line3 = "-,".0.",".(vl)."\\n"
-      call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+      call system('echo -e "'.line1.line2.line3.line4'" > '.a:fileName)
     else
       let line2 = "-,".0.",".(vl-1)."\\n"
       let line3 = "-,".0.",".l."\\n"
-      call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+      call system('echo -e "'.line1.line2.line3.line4.'" > '.a:fileName)
     endif
   elseif (s:vim_mode == 'n' || s:vim_mode[0] == 'R') && getline('.')!=''
     let line2 = "-,".(c-1).",".(l-1)."\\n"
     let line3 = "-,".c.",".(l-1)."\\n"
-    call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+    call system('echo -e "'.line1.line2.line3.line4.'" > '.a:fileName)
   else
     let line2 = "-,".(c-1).",".(l-1)."\\n"
     let line3 = line2
-    call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+    call system('echo -e "'.line1.line2.line3.line4.'" > '.a:fileName)
   endif
+  exec "set columns=".s:columns
+  exec "set lines=".s:lines
+
 endfunction
 
 let s:tabsChanging=0
