@@ -291,26 +291,28 @@ endfunction
 
 function! s:CheckConsole()
     let cmdtype = getcmdtype()
+    let cmdline = getcmdline()
     if cmdtype != "" "If you enter command mode from visual, mode()=='v', not 'c'
       call system('echo c > '.s:metaFile)
-      call system('echo '.s:BetterShellEscape(cmdtype.getcmdline()).' >> '.s:metaFile)
-      if &incsearch && (cmdtype == "?" || cmdtype == "/")
+      call system('echo '.s:BetterShellEscape(cmdtype.cmdline).' >> '.s:metaFile)
+      if &incsearch && (cmdtype == "?" || cmdtype == "/") && strlen(cmdline) > 0
+        let startPos = searchpos(cmdline, 'bn')
+        if startPos[0] >= 0
+          let endPos = getpos('.')[1:2]
 
-        let startPos = searchpos(getcmdline(), 'bn')
-        let endPos = getpos('.')[1:2]
+          let startl = startPos[0]
+          let endl = endPos[0]
+          let startc = strlen(substitute(strpart(getline(startl), 0, startPos[1]), ".", "x", "g"))
+          let endc = strlen(substitute(strpart(getline(endl), 0, endPos[1]), ".", "x", "g"))
+          if endc == startc
+            let endc += 1
+          endif
 
-        let startl = startPos[0]
-        let endl = endPos[0]
-        let startc = strlen(substitute(strpart(getline(startl), 0, startPos[1]), ".", "x", "g"))
-        let endc = strlen(substitute(strpart(getline(endl), 0, endPos[1]), ".", "x", "g"))
-        if endc == startc
-          let endc += 1
-        endif
-
-        let line3 = "-,".(startc-1).",".(startl-1)."\\n"
-        let line4 = "-,".(endc-1).",".(endl-1)."\\n"
-        if startc >= 0 && endc >= 0
-          call system('echo -e "'.line3.line4.'" >> '.s:metaFile)
+          let line3 = "-,".(startc-1).",".(startl-1)."\\n"
+          let line4 = "-,".(endc-1).",".(endl-1)."\\n"
+          if startc >= 0 && endc >= 0
+            call system('echo -e "'.line3.line4.'" >> '.s:metaFile)
+          endif
         endif
       endif
 
