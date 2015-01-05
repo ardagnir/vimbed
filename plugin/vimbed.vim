@@ -163,12 +163,17 @@ function! Vimbed_Poll()
   call s:OutputMessages()
 endfunction
 
+let s:lastChangedTick = 0
+
 function! s:WriteFile()
-  "Force vim to add trailing newline to empty files
-  if line('$') == 1 && getline(1) == ''
-    call s:VerySilent('!echo "" > '.s:GetContentsFile())
-  else
-    call s:VerySilent('write !cat > '.s:GetContentsFile())
+  if s:lastChangedTick != b:changedtick
+    let s:lastChangedTick = b:changedtick
+    "Force vim to add trailing newline to empty files
+    if line('$') == 1 && getline(1) == ''
+      call s:VerySilent('!echo "" > '.s:GetContentsFile())
+    else
+      call s:VerySilent('write !cat > '.s:GetContentsFile())
+    endif
   endif
 endfunction
 
@@ -320,6 +325,7 @@ function! s:CheckConsole()
     else
       if mode() != s:vim_mode
         call s:WriteMetaFile(s:metaFile, 0)
+        call s:TriggerStdout()
       endif
     endif
 endfunction
