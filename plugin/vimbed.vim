@@ -37,21 +37,19 @@ endfunction
 function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
   call s:VerySilent("call Vimbed_UndoJoinedEdit('".s:GetContentsFile()."')")
 
-  call cursor(a:lineStart, a:columnStart)
-
   "This block of code handles unicode. Our input is in characters but vim
   "deals in bytes.
   let currentCol = a:columnStart
-  let theLine = getline(".")
-  if strlen(substitute(theLine,".", "x", "g")) < a:columnEnd
+  let theLine = getline(a:lineStart)
+  if strlen(substitute(theLine, ".", "x", "g")) < a:columnStart
     let afterText = 1
     call cursor(a:lineStart, strlen(theLine)+1)
   else
     let afterText = 0
-    let actualColumn = strlen(substitute(strpart(theLine, 0, currentCol),".","x","g"))
+    let actualColumn = strlen(substitute(strpart(theLine, 0, currentCol), ".", "x", "g"))
     while actualColumn < a:columnStart
       let currentCol += a:columnStart - actualColumn
-      let actualColumn = strlen(substitute(strpart(theLine, 0, currentCol),".","x","g"))
+      let actualColumn = strlen(substitute(strpart(theLine, 0, currentCol), ".", "x", "g"))
     endwhile
     call cursor(a:lineStart, currentCol)
   endif
@@ -83,6 +81,9 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
     endif
     if a:lineEnd-a:lineStart > 0
       call feedkeys((a:lineEnd-a:lineStart)."j",'n')
+    endif
+    if afterText
+      call feedkeys("ol", 'n')
     endif
     call feedkeys("\<C-G>",'n')
   endif
