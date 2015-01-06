@@ -107,6 +107,7 @@ function! Vimbed_SetupVimbed(path, options)
   set noswapfile
   set shortmess+=A
   set noshowmode
+
   if a:path==""
     set buftype=nofile
     set bufhidden=hide
@@ -118,6 +119,13 @@ function! Vimbed_SetupVimbed(path, options)
     let s:includeTabs=1
   else
     let s:includeTabs=0
+  endif
+
+  if index(split(a:options,","),"linebreak")!=-1
+    set breakat=\ \	!@*-+;:,./&
+    set linebreak
+  else
+    set nolinebreak
   endif
 
   "Vim seems to be inconsistent with arrowkey terminal codes, even for the same termtype. So
