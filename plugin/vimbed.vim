@@ -34,6 +34,15 @@ function! Vimbed_UndoJoinedEdit(file)
   undojoin | normal! k"_dd
 endfunction
 
+"Gets chars instead of bytes.
+function! s:CharLength(string, pos)
+  if a:pos >= 0
+    return strlen(substitute(strpart(a:string, 0, a:pos), ".", "x", "g"))
+  else
+    return strlen(substitute(a:string, ".", "x", "g"))
+  endif
+endfunction
+
 function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
   call s:VerySilent("call Vimbed_UndoJoinedEdit('".s:GetContentsFile()."')")
 
@@ -41,15 +50,15 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
   "deals in bytes.
   let currentCol = a:columnStart
   let theLine = getline(a:lineStart)
-  if strlen(substitute(theLine, ".", "x", "g")) < a:columnStart
+  if s:CharLength(theLine, -1) < a:columnStart
     let afterText = 1
     call cursor(a:lineStart, strlen(theLine)+1)
   else
     let afterText = 0
-    let actualColumn = strlen(substitute(strpart(theLine, 0, currentCol), ".", "x", "g"))
+    let actualColumn = s:CharLength(theLine, currentCol)
     while actualColumn < a:columnStart
       let currentCol += a:columnStart - actualColumn
-      let actualColumn = strlen(substitute(strpart(theLine, 0, currentCol), ".", "x", "g"))
+      let actualColumn = s:CharLength(theLine, currentCol)
     endwhile
     call cursor(a:lineStart, currentCol)
   endif
@@ -196,7 +205,7 @@ function! s:WriteMetaFile(fileName, checkInsert)
 
   let l = line('.')
   let theLine = getline('.')
-  let c = strlen(substitute(strpart(theLine, 0, col('.')), ".", "x", "g")) "gets chars instead of bytes
+  let c = s:CharLength(theLine, col('.'))
   if col('.') > strlen(theLine)
     let c += 1
   endif
@@ -204,7 +213,7 @@ function! s:WriteMetaFile(fileName, checkInsert)
   if s:vim_mode ==# 'v' || s:vim_mode ==# 's'
     let vl = line('v')
     let vLine = getline('v')
-    let vc = strlen(substitute(strpart(theLine, 0, col('v')), ".", "x", "g")) "gets chars instead of bytes
+    let vc = s:CharLength(theLine, col('v'))
     if l < vl || (l == vl && c < vc)
       let line2 = "-,".(c-1).",".(l-1)."\\n"
       let line3 = "-,".(vc).",".(vl-1)."\\n"
@@ -308,8 +317,8 @@ function! s:CheckConsole()
 
           let startl = startPos[0]
           let endl = endPos[0]
-          let startc = strlen(substitute(strpart(getline(startl), 0, startPos[1]), ".", "x", "g"))
-          let endc = strlen(substitute(strpart(getline(endl), 0, endPos[1]), ".", "x", "g"))
+          let startc = s:CharLength(getline(startl), startPos[1])
+          let endc = s:CharLength(getline(endl), endPos[1])
           if endc == startc
             let endc += 1
           endif
