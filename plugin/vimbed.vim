@@ -68,7 +68,7 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
   endif
 
   if a:lineStart==a:lineEnd && a:columnStart==a:columnEnd
-    if mode()=="n" || mode()=="v" || mode()=="V" || mode()=="s" || mode()=="S"
+    if mode()=="n" || mode()=="v" || mode()=="V" || mode()=="s" || mode()=="S" || mode()=="c"
       if !afterText
         call feedkeys("\<ESC>i\<C-G>u",'n')
       else
@@ -154,7 +154,7 @@ function! Vimbed_SetupVimbed(path, options)
     sil exec "autocmd CursorMoved * call <SID>WriteMetaFile('".s:metaFile."', 0)"
     sil exec "autocmd CursorMovedI * call <SID>WriteMetaFile('".s:metaFile."', 0)"
 
-    sil exec "autocmd InsertEnter * call <SID>WriteMetaFile('".s:metaFile."', 1) | call <SID>TriggerStdout()"
+    sil exec "autocmd InsertEnter * call <SID>WriteMetaFile('".s:metaFile."', 1)"
     sil exec "autocmd InsertLeave * call <SID>WriteMetaFile('".s:metaFile."', 0)"
     sil exec "autocmd InsertChange * call <SID>WriteMetaFile('".s:metaFile."', 1)"
     if s:includeTabs
@@ -184,6 +184,7 @@ function! s:WriteFile()
     else
       call s:VerySilent('write !cat > '.s:GetContentsFile())
     endif
+    call s:OutputMessages()
   endif
 endfunction
 
@@ -243,6 +244,7 @@ function! s:WriteMetaFile(fileName, checkInsert)
     let line3 = line2
     call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
   endif
+  call s:OutputMessages()
 endfunction
 
 let s:tabsChanging=0
@@ -335,7 +337,6 @@ function! s:CheckConsole()
     else
       if mode() != s:vim_mode
         call s:WriteMetaFile(s:metaFile, 0)
-        call s:TriggerStdout()
       endif
     endif
 endfunction
@@ -347,15 +348,11 @@ function! s:VerySilent(args)
   exec "redir! >> ".s:messageFile
 endfunction
 
-function! s:TriggerStdout()
-  redir END
-  echo ''
-  exec "redir! >> ".s:messageFile
-endfunction
-
 "This repeatedly flushes because messages aren't written until the redir ends.
+"Also used to trigger stdout (otherwise the messages might be delayed)
 function! s:OutputMessages()
   redir END
+  echo ''
   exec "redir! >> ".s:messageFile
 endfunction
 
