@@ -18,9 +18,6 @@
 
 let g:save_cpo = &cpo
 set cpo&vim
-if exists("g:loaded_vimbed")
-  finish
-endif
 
 let s:fromCommand = 0
 let s:vim_mode = "n"
