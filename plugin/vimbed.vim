@@ -131,6 +131,7 @@ function! Vimbed_SetupVimbed(path, options)
   exec "set t_kl=\<ESC>[D"
 
   snoremap <bs> <C-G>c
+  snoremap <C-]> <Nop>
 
   let s:file = "/tmp/vimbed/".tolower(v:servername)."/contents.txt"
   let s:metaFile = "/tmp/vimbed/".tolower(v:servername)."/meta.txt"
