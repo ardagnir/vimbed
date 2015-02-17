@@ -80,13 +80,14 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
       call feedkeys ((a:columnStart-1)."l",'n')
     endif
     call feedkeys("\<ESC>v",'n')
-    if a:columnEnd-a:columnStart > 1
-      call feedkeys((a:columnEnd-a:columnStart-1)."l",'n')
-    elseif a:columnStart-a:columnEnd > -1
-      call feedkeys((a:columnStart-a:columnEnd+1)."h",'n')
-    endif
     if a:lineEnd-a:lineStart > 0
       call feedkeys((a:lineEnd-a:lineStart)."j",'n')
+    endif
+    call feedkeys ("0",'n')
+    if a:columnEnd == 1 "Cursor is between previous line and this
+      call feedkeys("k$",'n')
+    elseif a:columnEnd > 2
+      call feedkeys((a:columnEnd-2)."l",'n')
     endif
     if afterText
       call feedkeys("ol", 'n')
@@ -212,7 +213,7 @@ function! s:WriteMetaFile(fileName, checkInsert)
   if s:vim_mode ==# 'v' || s:vim_mode ==# 's'
     let vl = line('v')
     let vLine = getline('v')
-    let vc = s:CharLength(theLine, col('v'))
+    let vc = s:CharLength(vLine, col('v'))
     if l < vl || (l == vl && c < vc)
       let line2 = "-,".(c-1).",".(l-1)."\\n"
       let line3 = "-,".(vc).",".(vl-1)."\\n"
