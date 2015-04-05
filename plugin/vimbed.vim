@@ -41,7 +41,7 @@ function! s:CharLength(string, pos)
 endfunction
 
 function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
-  call s:VerySilent("call Vimbed_UndoJoinedEdit('".s:GetContentsFile()."')")
+  call s:VerySilent("call Vimbed_UndoJoinedEdit('".s:GetUpdateFile()."')")
 
   "This block of code handles unicode. Our input is in characters but vim
   "deals in bytes.
@@ -61,6 +61,7 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
   endif
 
   if a:preserveMode
+    call s:WriteFile()
     return
   endif
 
@@ -97,6 +98,7 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
 
   call system("echo '' > ".s:metaFile)
   let s:vim_mode=''
+  call s:WriteFile()
 endfunction
 
 function! s:GetContentsFile()
@@ -104,6 +106,14 @@ function! s:GetContentsFile()
     return "/tmp/vimbed/".tolower(v:servername)."/contents-".bufnr('%').".txt"
   else
     return s:file
+  endif
+endfunction
+
+function! s:GetUpdateFile()
+  if s:includeTabs
+    return "/tmp/vimbed/".tolower(v:servername)."/update-".bufnr('%').".txt"
+  else
+    return s:updateFile
   endif
 endfunction
 
@@ -134,9 +144,19 @@ function! Vimbed_SetupVimbed(path, options)
   snoremap <bs> <C-G>c
   snoremap <C-]> <Nop>
 
+  "Contents of the vim buffer
   let s:file = "/tmp/vimbed/".tolower(v:servername)."/contents.txt"
+
+  "Vim metadata
   let s:metaFile = "/tmp/vimbed/".tolower(v:servername)."/meta.txt"
+
+  "Messages from vim
   let s:messageFile = "/tmp/vimbed/".tolower(v:servername)."/messages.txt"
+
+  "Put text in this file before telling vim to update
+  let s:updateFile = "/tmp/vimbed/".tolower(v:servername)."/update.txt"
+
+  "Tab info
   let s:tabFile = "/tmp/vimbed/".tolower(v:servername)."/tabs.txt"
 
   augroup vimbed
