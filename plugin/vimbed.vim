@@ -340,7 +340,7 @@ function! s:CheckConsole()
           let endl = endPos[0]
           let startc = s:CharLength(getline(startl), startPos[1])
           let endc = s:CharLength(getline(endl), endPos[1])
-          if endc == startc
+          if endPos[1] > strlen(getline(endl)) || endc == startc
             let endc += 1
           endif
 
