@@ -329,7 +329,7 @@ function! s:CheckConsole()
     let cmdtype = getcmdtype()
     let cmdline = getcmdline()
     if cmdtype != "" "If you enter command mode from visual, mode()=='v', not 'c'
-      call system('echo c > '.s:metaFile)
+      call system('echo c,'.getcmdpos().' > '.s:metaFile)
       call system('echo '.s:BetterShellEscape(cmdtype.cmdline).' >> '.s:metaFile)
       if &incsearch && (cmdtype == "?" || cmdtype == "/") && strlen(cmdline) > 0
         let startPos = searchpos(cmdline, 'bn')
