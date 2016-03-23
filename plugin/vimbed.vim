@@ -176,6 +176,8 @@ function! Vimbed_SetupVimbed(path, options)
     sil exec "autocmd InsertEnter * call <SID>WriteMetaFile('".s:metaFile."', 1)"
     sil exec "autocmd InsertLeave * call <SID>WriteMetaFile('".s:metaFile."', 0)"
     sil exec "autocmd InsertChange * call <SID>WriteMetaFile('".s:metaFile."', 1)"
+    sil exec "autocmd VimLeave * call <SID>VimLeave('".s:metaFile."')"
+
     if s:includeTabs
       sil exec "autocmd BufEnter * call <SID>WriteTabFile()"
       sil exec "autocmd TabEnter * call <SID>WriteTabFile()"
@@ -208,6 +210,9 @@ function! s:WriteFile()
 endfunction
 
 function! s:WriteMetaFile(fileName, checkInsert)
+  if s:quitting == 1
+    return
+  endif
   if a:checkInsert
     if v:insertmode ==? 'i'
       let s:vim_mode = 'i'
@@ -264,6 +269,14 @@ function! s:WriteMetaFile(fileName, checkInsert)
     call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
   endif
   call s:OutputMessages()
+endfunction
+
+let s:quitting = 0
+function s:VimLeave(fileName)
+  let s:quitting = 1
+  if v:dying == 0
+    call system('echo "quit" > '.a:fileName)
+  endif
 endfunction
 
 let s:tabsChanging=0
