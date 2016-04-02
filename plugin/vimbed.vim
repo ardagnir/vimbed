@@ -346,22 +346,23 @@ function! s:CheckConsole()
       call system('echo '.s:BetterShellEscape(cmdtype.cmdline).' >> '.s:metaFile)
       if &incsearch && (cmdtype == "?" || cmdtype == "/") && strlen(cmdline) > 0
         let startPos = searchpos(cmdline, 'bn')
-        if startPos[0] >= 0
-          let endPos = getpos('.')[1:2]
+        if startPos[0] <= 0
+          let startPos = getpos('.')[1:2]
+        endif
+        let endPos = getpos('.')[1:2]
 
-          let startl = startPos[0]
-          let endl = endPos[0]
-          let startc = s:CharLength(getline(startl), startPos[1])
-          let endc = s:CharLength(getline(endl), endPos[1])
-          if endPos[1] > strlen(getline(endl)) || endc == startc
-            let endc += 1
-          endif
+        let startl = startPos[0]
+        let endl = endPos[0]
+        let startc = s:CharLength(getline(startl), startPos[1])
+        let endc = s:CharLength(getline(endl), endPos[1])
+        if endPos[1] > strlen(getline(endl)) || endc == startc
+          let endc += 1
+        endif
 
-          let line3 = "-,".(startc-1).",".(startl-1)."\\n"
-          let line4 = "-,".(endc-1).",".(endl-1)."\\n"
-          if startc >= 0 && endc >= 0
-            call system('echo -e "'.line3.line4.'" >> '.s:metaFile)
-          endif
+        let line3 = "-,".(startc-1).",".(startl-1)."\\n"
+        let line4 = "-,".(endc-1).",".(endl-1)."\\n"
+        if startc >= 0 && endc >= 0
+          call system('echo -e "'.line3.line4.'" >> '.s:metaFile)
         endif
       endif
 
