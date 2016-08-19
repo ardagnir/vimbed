@@ -26,9 +26,14 @@ let s:vim_mode = "n"
 "Replacement for 'edit! s:file' that is undo joined (and doesn't leave the
 "scratch buffer)
 function! Vimbed_UndoJoinedEdit(file)
-  undojoin | exec "normal! \<ESC>gg\"_dG"
-  undojoin | exec "read ".a:file
-  undojoin | normal! k"_dd
+  if s:slice && (s:slice_start > 0 || s:slice_end < line("$") - 1)
+    undojoin | exec "normal! \<ESC>".(s:slice_start+1)."gg\"_d".(s:slice_end+1)."gg"
+    undojoin | exec "".s:slice_start."read ".a:file
+  else
+    undojoin | exec "normal! \<ESC>gg\"_dG"
+    undojoin | exec "read ".a:file
+    undojoin | normal! k"_dd
+  endif
 endfunction
 
 "Gets chars instead of bytes.
@@ -61,7 +66,9 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
   endif
 
   if a:preserveMode
-    call s:WriteFile()
+    if !s:slice || !s:WriteMetaFile(s:metaFile, 0)
+      call s:WriteFile(0)
+    endif
     return
   endif
 
@@ -98,7 +105,9 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
 
   call system("echo '' > ".s:metaFile)
   let s:vim_mode=''
-  call s:WriteFile()
+  if !s:slice || !s:WriteMetaFile(s:metaFile, 0)
+    call s:WriteFile(0)
+  endif
 endfunction
 
 function! s:GetContentsFile()
@@ -128,11 +137,19 @@ function! Vimbed_SetupVimbed(path, options)
     exec "edit ".a:path
   endif
 
-  if index(split(a:options,","),"tabs")!=-1
-    let s:includeTabs=1
-  else
-    let s:includeTabs=0
-  endif
+  let s:includeTabs = 0
+  let s:slice = 0
+  for option in split(a:options, ",")
+    if option == "tabs"
+      let s:includeTabs = 1
+    elseif option == "slice"
+      let s:slice = 1
+      let s:slice_start = 0
+      let s:slice_end = 0
+    else
+      return 1
+    endif
+  endfor
 
   "Vim seems to be inconsistent with arrowkey terminal codes, even for the same termtype. So
   "we're setting them manually.
@@ -145,7 +162,13 @@ function! Vimbed_SetupVimbed(path, options)
   snoremap <C-]> <Nop>
 
   "Contents of the vim buffer
-  let s:file = "/tmp/vimbed/".tolower(v:servername)."/contents.txt"
+  if s:slice
+    let s:file = "/tmp/vimbed/".tolower(v:servername)."/slice.txt"
+  else
+    let s:file = "/tmp/vimbed/".tolower(v:servername)."/contents.txt"
+  endif
+
+  "Contents of the vim buffer
 
   "Vim metadata
   let s:metaFile = "/tmp/vimbed/".tolower(v:servername)."/meta.txt"
@@ -165,10 +188,10 @@ function! Vimbed_SetupVimbed(path, options)
 
     "I'm piping through cat, because write! can still trigger vim's
     "clippy-style 'are you sure?' messages.
-    sil exec "sil autocmd TextChanged * call <SID>WriteFile()"
+    sil exec "sil autocmd TextChanged * call <SID>WriteFile(0)"
 
     "Adding text in insert mode calls this, but not TextChangedI
-    sil exec "sil autocmd CursorMovedI * call <SID>WriteFile()"
+    sil exec "sil autocmd CursorMovedI * call <SID>WriteFile(0)"
 
     sil exec "autocmd CursorMoved * call <SID>WriteMetaFile('".s:metaFile."', 0)"
     sil exec "autocmd CursorMovedI * call <SID>WriteMetaFile('".s:metaFile."', 0)"
@@ -183,12 +206,13 @@ function! Vimbed_SetupVimbed(path, options)
       sil exec "autocmd TabEnter * call <SID>WriteTabFile()"
     endif
   augroup END
+  return 0
 endfunction
 
 function! Vimbed_Poll()
   "WriteFile is only needed for games, shells, and other plugins that change
   "text without user input. Feel free to remove it if you don't use these.
-  call s:WriteFile()
+  call s:WriteFile(0)
 
   call s:CheckConsole()
   call s:OutputMessages()
@@ -196,14 +220,18 @@ endfunction
 
 let s:lastChangedTick = 0
 
-function! s:WriteFile()
-  if s:lastChangedTick != b:changedtick
+function! s:WriteFile(force)
+  if a:force || s:lastChangedTick != b:changedtick
     let s:lastChangedTick = b:changedtick
     "Force vim to add trailing newline to empty files
     if line('$') == 1 && getline(1) == ''
       call s:VerySilent('!echo "" > '.s:GetContentsFile())
     else
-      call s:VerySilent('write !cat > '.s:GetContentsFile())
+      if s:slice
+        call s:VerySilent((s:slice_start+1) . ',' . (s:slice_end+1) . 'write !cat > '.s:GetContentsFile())
+      else
+        call s:VerySilent('write !cat > '.s:GetContentsFile())
+      endif
     endif
     call s:OutputMessages()
   endif
@@ -211,7 +239,7 @@ endfunction
 
 function! s:WriteMetaFile(fileName, checkInsert)
   if s:quitting == 1
-    return
+    return 0
   endif
   if a:checkInsert
     if v:insertmode ==? 'i'
@@ -235,40 +263,61 @@ function! s:WriteMetaFile(fileName, checkInsert)
     let c += 1
   endif
 
+  let l:old_start=s:slice_start
+  let l:old_end=s:slice_end
+
   if s:vim_mode ==# 'v' || s:vim_mode ==# 's'
     let vl = line('v')
     let vLine = getline('v')
     let vc = s:CharLength(vLine, col('v'))
     if l < vl || (l == vl && c < vc)
-      let line2 = "-,".(c-1).",".(l-1)."\\n"
-      let line3 = "-,".(vc).",".(vl-1)."\\n"
+      let s:slice_start = l-1
+      let s:slice_end = vl-1
+      let line2 = "-,".(c-1).",".s:slice_start."\\n"
+      let line3 = "-,".(vc).",".s:slice_end."\\n"
       call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
     else
-      let line2 = "-,".(vc-1).",".(vl-1)."\\n"
-      let line3 = "-,".c.",".(l-1)."\\n"
+      let s:slice_start = vl-1
+      let s:slice_end = l-1
+      let line2 = "-,".(vc-1).",".s:slice_start."\\n"
+      let line3 = "-,".c.",".s:slice_end."\\n"
       call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
     endif
   elseif s:vim_mode ==# 'V' || s:vim_mode ==# 'S'
     let vl = line('v')
     if l < vl
-      let line2 = "-,".0.",".(l-1)."\\n"
-      let line3 = "-,".0.",".(vl)."\\n"
+      let s:slice_start = l-1
+      let s:slice_end = vl
+      let line2 = "-,".0.",".s:slice_start."\\n"
+      let line3 = "-,".0.",".s:slice_end."\\n"
       call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
     else
-      let line2 = "-,".0.",".(vl-1)."\\n"
-      let line3 = "-,".0.",".l."\\n"
+      let s:slice_start = vl-1
+      let s:slice_end = l
+      let line2 = "-,".0.",".s:slice_start."\\n"
+      let line3 = "-,".0.",".s:slice_end."\\n"
       call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
     endif
   elseif (s:vim_mode == 'n' || s:vim_mode[0] == 'R') && getline('.')!=''
-    let line2 = "-,".(c-1).",".(l-1)."\\n"
-    let line3 = "-,".c.",".(l-1)."\\n"
+    let s:slice_start = l-1
+    let s:slice_end = l-1
+    let line2 = "-,".(c-1).",".s:slice_start."\\n"
+    let line3 = "-,".c.",".s:slice_end."\\n"
     call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
   else
-    let line2 = "-,".(c-1).",".(l-1)."\\n"
+    let s:slice_start = l-1
+    let s:slice_end = l-1
+    let line2 = "-,".(c-1).",".s:slice_start."\\n"
     let line3 = line2
     call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
   endif
-  call s:OutputMessages()
+  if s:slice && (s:slice_start != l:old_start || s:slice_end != l:old_end)
+    call s:WriteFile(1)
+    return 1
+  else
+    call s:OutputMessages()
+    return 0
+  endif
 endfunction
 
 let s:quitting = 0
@@ -313,7 +362,7 @@ function! Vimbed_UpdateTabs(activeTab, tabList, loadFiles)
     if a:loadFiles
       let fileName="/tmp/vimbed/".tolower(v:servername)."/tabin-".currentFile.".txt"
       call s:VerySilent("call Vimbed_UndoJoinedEdit('".fileName."')")
-      call s:WriteFile()
+      call s:WriteFile(0)
       call system("rm ".fileName)
       let currentFile+=1
     endif
@@ -359,10 +408,20 @@ function! s:CheckConsole()
           let endc += 1
         endif
 
-        let line3 = "-,".(startc-1).",".(startl-1)."\\n"
-        let line4 = "-,".(endc-1).",".(endl-1)."\\n"
         if startc >= 0 && endc >= 0
+          let l:old_start=s:slice_start
+          let l:old_end=s:slice_end
+
+          let s:slice_start = startl-1
+          let s:slice_end = startl-1
+
+          let line3 = "-,".(startc-1).",".s:slice_start."\\n"
+          let line4 = "-,".(endc-1).",".s:slice_end."\\n"
+
           call system('echo -e "'.line3.line4.'" >> '.s:metaFile)
+          if s:slice && (s:slice_start != l:old_start || s:slice_end != l:old_end)
+            call s:WriteFile(1)
+          endif
         endif
       endif
 
