@@ -66,8 +66,11 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
   endif
 
   if a:preserveMode
-    if !s:slice || !s:WriteMetaFile(s:metaFile, 0)
-      call s:WriteFile(0)
+    if s:slice
+      call system("echo '' > ".s:sliceFile)
+    else
+      call system("echo '' > ".s:metaFile)
+      call s:WriteFile()
     endif
     return
   endif
@@ -103,10 +106,12 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
     call feedkeys("\<C-G>",'n')
   endif
 
-  call system("echo '' > ".s:metaFile)
   let s:vim_mode=''
-  if !s:slice || !s:WriteMetaFile(s:metaFile, 0)
-    call s:WriteFile(0)
+  if s:slice
+    call system("echo '' > ".s:sliceFile)
+  else
+    call system("echo '' > ".s:metaFile)
+    call s:WriteFile()
   endif
 endfunction
 
@@ -161,17 +166,16 @@ function! Vimbed_SetupVimbed(path, options)
   snoremap <bs> <C-G>c
   snoremap <C-]> <Nop>
 
-  "Contents of the vim buffer
   if s:slice
-    let s:file = "/tmp/vimbed/".tolower(v:servername)."/slice.txt"
+    let s:sliceFile = "/tmp/vimbed/".tolower(v:servername)."/slice.txt"
   else
+    "Contents of the vim buffer
     let s:file = "/tmp/vimbed/".tolower(v:servername)."/contents.txt"
+
+    "Vim metadata
+    let s:metaFile = "/tmp/vimbed/".tolower(v:servername)."/meta.txt"
   endif
 
-  "Contents of the vim buffer
-
-  "Vim metadata
-  let s:metaFile = "/tmp/vimbed/".tolower(v:servername)."/meta.txt"
 
   "Messages from vim
   let s:messageFile = "/tmp/vimbed/".tolower(v:servername)."/messages.txt"
@@ -186,20 +190,28 @@ function! Vimbed_SetupVimbed(path, options)
     sil autocmd!
     sil autocmd FileChangedShell * echon ''
 
-    "I'm piping through cat, because write! can still trigger vim's
-    "clippy-style 'are you sure?' messages.
-    sil exec "sil autocmd TextChanged * call <SID>WriteFile(0)"
+    if s:slice
+      sil exec "sil autocmd TextChanged * call <SID>WriteSlice(0)"
+      sil exec "sil autocmd CursorMovedI * call <SID>WriteSlice(0)"
+      sil exec "autocmd CursorMoved * call <SID>WriteSlice(0)"
+      sil exec "autocmd InsertEnter * call <SID>WriteSlice(1)"
+      sil exec "autocmd InsertLeave * call <SID>WriteSlice(0)"
+      sil exec "autocmd InsertChange * call <SID>WriteSlice(1)"
+      sil exec "autocmd VimLeave * call <SID>VimLeave('".s:sliceFile."')"
+    else
+      sil exec "sil autocmd TextChanged * call <SID>WriteFile()"
+      "Adding text in insert mode calls this, but not TextChangedI
+      sil exec "sil autocmd CursorMovedI * call <SID>WriteFile()"
 
-    "Adding text in insert mode calls this, but not TextChangedI
-    sil exec "sil autocmd CursorMovedI * call <SID>WriteFile(0)"
+      sil exec "autocmd CursorMoved * call <SID>WriteMetaFile(0)"
+      sil exec "autocmd CursorMovedI * call <SID>WriteMetaFile(0)"
 
-    sil exec "autocmd CursorMoved * call <SID>WriteMetaFile('".s:metaFile."', 0)"
-    sil exec "autocmd CursorMovedI * call <SID>WriteMetaFile('".s:metaFile."', 0)"
+      sil exec "autocmd InsertEnter * call <SID>WriteMetaFile(1)"
+      sil exec "autocmd InsertLeave * call <SID>WriteMetaFile(0)"
+      sil exec "autocmd InsertChange * call <SID>WriteMetaFile(1)"
+      sil exec "autocmd VimLeave * call <SID>VimLeave('".s:metaFile."')"
+    endif
 
-    sil exec "autocmd InsertEnter * call <SID>WriteMetaFile('".s:metaFile."', 1)"
-    sil exec "autocmd InsertLeave * call <SID>WriteMetaFile('".s:metaFile."', 0)"
-    sil exec "autocmd InsertChange * call <SID>WriteMetaFile('".s:metaFile."', 1)"
-    sil exec "autocmd VimLeave * call <SID>VimLeave('".s:metaFile."')"
 
     if s:includeTabs
       sil exec "autocmd BufEnter * call <SID>WriteTabFile()"
@@ -210,24 +222,28 @@ function! Vimbed_SetupVimbed(path, options)
 endfunction
 
 function! Vimbed_Poll()
-  "WriteFile is only needed for games, shells, and other plugins that change
-  "text without user input. Feel free to remove it if you don't use these.
-  call s:WriteFile(0)
-
-  call s:CheckConsole()
-  call s:OutputMessages()
+  if s:slice
+    call s:WriteSlice(0)
+  else
+    call s:WriteFile()
+    if s:vim_mode != mode() || getcmdtype() != ""
+      call s:WriteMetaFile(0)
+    endif
+  endif
 endfunction
 
 let s:lastChangedTick = 0
 
-function! s:WriteFile(force)
-  if a:force || s:lastChangedTick != b:changedtick
+function! s:WriteFile()
+  if s:lastChangedTick != b:changedtick
     let s:lastChangedTick = b:changedtick
     "Force vim to add trailing newline to empty files
     if line('$') == 1 && getline(1) == ''
       call s:VerySilent('!echo "" > '.s:GetContentsFile())
     else
       if s:slice
+        "I'm piping through cat, because write! can still trigger vim's
+        "clippy-style 'are you sure?' messages.
         call s:VerySilent((s:slice_start+1) . ',' . (s:slice_end+1) . 'write !cat > '.s:GetContentsFile())
       else
         call s:VerySilent('write !cat > '.s:GetContentsFile())
@@ -237,10 +253,11 @@ function! s:WriteFile(force)
   endif
 endfunction
 
-function! s:WriteMetaFile(fileName, checkInsert)
+function! s:GetMetadata(checkInsert)
   if s:quitting == 1
-    return 0
+    return "quit"
   endif
+  let cmdtype = getcmdtype()
   if a:checkInsert
     if v:insertmode ==? 'i'
       let s:vim_mode = 'i'
@@ -251,10 +268,14 @@ function! s:WriteMetaFile(fileName, checkInsert)
       let s:vim_mode = 'Rv'
     endif
   else
-    let s:vim_mode = mode()
+    if cmdtype != ""
+      let s:vim_mode = "c"
+    else
+      let s:vim_mode = mode()
+    endif
   endif
 
-  let line1 = s:vim_mode."\\n"
+  let line1 = s:vim_mode."\n"
 
   let l = line('.')
   let theLine = getline('.')
@@ -263,9 +284,6 @@ function! s:WriteMetaFile(fileName, checkInsert)
     let c += 1
   endif
 
-  let l:old_start=s:slice_start
-  let l:old_end=s:slice_end
-
   if s:vim_mode ==# 'v' || s:vim_mode ==# 's'
     let vl = line('v')
     let vLine = getline('v')
@@ -273,58 +291,88 @@ function! s:WriteMetaFile(fileName, checkInsert)
     if l < vl || (l == vl && c < vc)
       let s:slice_start = l-1
       let s:slice_end = vl-1
-      let line2 = "-,".(c-1).",".s:slice_start."\\n"
-      let line3 = "-,".(vc).",".s:slice_end."\\n"
-      call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+      let line2 = "-,".(c-1).",".s:slice_start."\n"
+      let line3 = "-,".(vc).",".s:slice_end."\n"
     else
       let s:slice_start = vl-1
       let s:slice_end = l-1
-      let line2 = "-,".(vc-1).",".s:slice_start."\\n"
-      let line3 = "-,".c.",".s:slice_end."\\n"
-      call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+      let line2 = "-,".(vc-1).",".s:slice_start."\n"
+      let line3 = "-,".c.",".s:slice_end."\n"
     endif
   elseif s:vim_mode ==# 'V' || s:vim_mode ==# 'S'
     let vl = line('v')
     if l < vl
       let s:slice_start = l-1
-      let s:slice_end = vl
-      let line2 = "-,".0.",".s:slice_start."\\n"
-      let line3 = "-,".0.",".s:slice_end."\\n"
-      call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+      let s:slice_end = vl-1
     else
       let s:slice_start = vl-1
-      let s:slice_end = l
-      let line2 = "-,".0.",".s:slice_start."\\n"
-      let line3 = "-,".0.",".s:slice_end."\\n"
-      call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+      let s:slice_end = l-1
     endif
+    let line2 = "-,".0.",".s:slice_start."\n"
+    let line3 = "-,".0.",".(s:slice_end+1)."\n"
+  elseif (s:vim_mode == 'c')
+    let cmdline = getcmdline()
+    let ret = 'c'."\n".shellescape(cmdtype.cmdline,0)
+    if !&incsearch || !(cmdtype == "?" || cmdtype == "/") || strlen(cmdline) == 0
+      return ret."\n"."\n"
+    endif
+    let startPos = searchpos(cmdline, 'bn')
+    if startPos[0] <= 0
+      let startPos = getpos('.')[1:2]
+    endif
+    let endPos = getpos('.')[1:2]
+
+    let startl = startPos[0]
+    let endl = endPos[0]
+    let startc = s:CharLength(getline(startl), startPos[1])
+    let endc = s:CharLength(getline(endl), endPos[1])
+    if endPos[1] > strlen(getline(endl)) || endc == startc
+      let endc += 1
+    endif
+
+    if startc < 0 || endc < 0
+      return ret."\n"."\n"
+    endif
+
+    let s:slice_start = startl-1
+    let s:slice_end = startl-1
+
+    let line3 = "-,".(startc-1).",".s:slice_start."\n"
+    let line4 = "-,".(endc-1).",".s:slice_end."\n"
+
+    return ret.line3.line4
   elseif (s:vim_mode == 'n' || s:vim_mode[0] == 'R') && getline('.')!=''
     let s:slice_start = l-1
     let s:slice_end = l-1
-    let line2 = "-,".(c-1).",".s:slice_start."\\n"
-    let line3 = "-,".c.",".s:slice_end."\\n"
-    call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
+    let line2 = "-,".(c-1).",".s:slice_start."\n"
+    let line3 = "-,".c.",".s:slice_end."\n"
   else
     let s:slice_start = l-1
     let s:slice_end = l-1
-    let line2 = "-,".(c-1).",".s:slice_start."\\n"
+    let line2 = "-,".(c-1).",".s:slice_start."\n"
     let line3 = line2
-    call system('echo -e "'.line1.line2.line3.'" > '.a:fileName)
   endif
-  if s:slice && (s:slice_start != l:old_start || s:slice_end != l:old_end)
-    call s:WriteFile(1)
-    return 1
-  else
-    call s:OutputMessages()
-    return 0
-  endif
+  return line1.line2.line3
+endfunction
+
+function! s:WriteMetaFile(checkInsert)
+  call system("printf '%s' '".s:GetMetadata(a:checkInsert)."' > ".s:metaFile)
+  call s:OutputMessages()
+endfunction
+
+function! s:WriteSlice(checkInsert)
+  "TODO: don't write if nothing changed. compare metadata and change tick
+  let metadata = s:GetMetadata(a:checkInsert)
+  let slice_text = join(getline(s:slice_start+1, s:slice_end+1), "\n")
+  call system("printf '%s%s' '" . metadata . "' ".s:ShellEscapeWithNewLines(slice_text) . " > ".s:sliceFile)
+  call s:OutputMessages()
 endfunction
 
 let s:quitting = 0
 function s:VimLeave(fileName)
   let s:quitting = 1
   if v:dying == 0
-    call system('echo "quit" > '.a:fileName)
+    call system('printf "quit\\n" > '.a:fileName)
   endif
 endfunction
 
@@ -338,9 +386,9 @@ function s:WriteTabFile()
   let output=bufnr('%')." ".tabpagenr()
   for i in range(tabpagenr('$'))
     let bufnum = tabpagebuflist(i+1)[0]
-    let output .= "\n".bufnum.":".s:BetterShellEscape(expand('#'.bufnum.":p"))
+    let output .= "\n".bufnum.":".shellescape(expand('#'.bufnum.":p"),0)
   endfor
-  call system("echo -n '".output."' > ".s:tabFile)
+  call system("printf '".output."' > ".s:tabFile)
 endfunction
 
 function! Vimbed_UpdateTabs(activeTab, tabList, loadFiles)
@@ -362,7 +410,7 @@ function! Vimbed_UpdateTabs(activeTab, tabList, loadFiles)
     if a:loadFiles
       let fileName="/tmp/vimbed/".tolower(v:servername)."/tabin-".currentFile.".txt"
       call s:VerySilent("call Vimbed_UndoJoinedEdit('".fileName."')")
-      call s:WriteFile(0)
+      call s:WriteFile()
       call system("rm ".fileName)
       let currentFile+=1
     endif
@@ -379,58 +427,8 @@ function! Vimbed_UpdateTabs(activeTab, tabList, loadFiles)
   call s:WriteTabFile()
 endfunction
 
-function s:BetterShellEscape(text)
-  let returnVal = shellescape(a:text, 1)
-  let returnVal = substitute(returnVal, '\\%', '%', 'g')
-  let returnVal = substitute(returnVal, '\\#', '#', 'g')
-  let returnVal = substitute(returnVal, '\\!', '!', 'g')
-  return returnVal
-endfunction
-
-function! s:CheckConsole()
-    let cmdtype = getcmdtype()
-    let cmdline = getcmdline()
-    if cmdtype != "" "If you enter command mode from visual, mode()=='v', not 'c'
-      call system('echo c,'.getcmdpos().' > '.s:metaFile)
-      call system('echo '.s:BetterShellEscape(cmdtype.cmdline).' >> '.s:metaFile)
-      if &incsearch && (cmdtype == "?" || cmdtype == "/") && strlen(cmdline) > 0
-        let startPos = searchpos(cmdline, 'bn')
-        if startPos[0] <= 0
-          let startPos = getpos('.')[1:2]
-        endif
-        let endPos = getpos('.')[1:2]
-
-        let startl = startPos[0]
-        let endl = endPos[0]
-        let startc = s:CharLength(getline(startl), startPos[1])
-        let endc = s:CharLength(getline(endl), endPos[1])
-        if endPos[1] > strlen(getline(endl)) || endc == startc
-          let endc += 1
-        endif
-
-        if startc >= 0 && endc >= 0
-          let l:old_start=s:slice_start
-          let l:old_end=s:slice_end
-
-          let s:slice_start = startl-1
-          let s:slice_end = startl-1
-
-          let line3 = "-,".(startc-1).",".s:slice_start."\\n"
-          let line4 = "-,".(endc-1).",".s:slice_end."\\n"
-
-          call system('echo -e "'.line3.line4.'" >> '.s:metaFile)
-          if s:slice && (s:slice_start != l:old_start || s:slice_end != l:old_end)
-            call s:WriteFile(1)
-          endif
-        endif
-      endif
-
-      let s:vim_mode="c"
-    else
-      if mode() != s:vim_mode
-        call s:WriteMetaFile(s:metaFile, 0)
-      endif
-    endif
+function! s:ShellEscapeWithNewLines(text)
+  return substitute(shellescape(a:text, 0), "\\\\\n", "\n", 'g')
 endfunction
 
 "Don't even redirect the output
