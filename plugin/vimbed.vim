@@ -312,7 +312,7 @@ function! s:GetMetadata(checkInsert)
     let line3 = "-,".0.",".(s:slice_end+1)."\n"
   elseif (s:vim_mode == 'c')
     let cmdline = getcmdline()
-    let ret = 'c'."\n".shellescape(cmdtype.cmdline,0)."\n"
+    let ret = 'c'."\n".s:ShellEscapeWithoutQuotes(cmdtype.cmdline)."\n"
     if !&incsearch || !(cmdtype == "?" || cmdtype == "/") || strlen(cmdline) == 0
       return ret."\n"."\n"
     endif
@@ -429,6 +429,10 @@ endfunction
 
 function! s:ShellEscapeWithNewLines(text)
   return substitute(shellescape(a:text, 0), "\\\\\n", "\n", 'g')
+endfunction
+
+function! s:ShellEscapeWithoutQuotes(text)
+  return shellescape(a:text, 0)[1:-2]
 endfunction
 
 "Don't even redirect the output
