@@ -312,7 +312,7 @@ function! s:GetMetadata(checkInsert)
     let line3 = "-,".0.",".(s:slice_end+1)."\n"
   elseif (s:vim_mode == 'c')
     let cmdline = getcmdline()
-    let ret = 'c'."\n".s:ShellEscapeWithoutQuotes(cmdtype.cmdline)."\n"
+    let ret = 'c,'.getcmdpos()."\n".s:ShellEscapeWithoutQuotes(cmdtype.cmdline)."\n"
     if !&incsearch || !(cmdtype == "?" || cmdtype == "/") || strlen(cmdline) == 0
       return ret."\n"."\n"
     endif
