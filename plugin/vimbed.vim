@@ -360,11 +360,16 @@ function! s:WriteMetaFile(checkInsert)
   call s:OutputMessages()
 endfunction
 
+let s:old_meta=""
+let s:old_slice_text=""
 function! s:WriteSlice(checkInsert)
-  "TODO: don't write if nothing changed. compare metadata and change tick
   let metadata = s:GetMetadata(a:checkInsert)
   let slice_text = join(getline(s:slice_start+1, s:slice_end+1), "\n")
-  call system("printf '%s%s' '" . metadata . "' ".s:ShellEscapeWithNewLines(slice_text) . " > ".s:sliceFile)
+  if metadata!=s:old_meta || slice_text!=s:old_slice_text
+    let s:old_meta = metadata
+    let s:old_slice_text = slice_text
+    call system("printf '%s%s' '" . metadata . "' ".s:ShellEscapeWithNewLines(slice_text) . " > ".s:sliceFile)
+  endif
   call s:OutputMessages()
 endfunction
 
