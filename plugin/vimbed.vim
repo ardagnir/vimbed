@@ -369,6 +369,9 @@ function! s:WriteSlice(checkInsert)
     let s:old_meta = metadata
     let s:old_slice_text = slice_text
     call system("printf '%s%s' '" . metadata . "' ".s:ShellEscapeWithNewLines(slice_text) . " > ".s:sliceFile)
+  else
+    " For some vim/os combinations, remote-expr takes 10x as long if there is no system call.
+    call system("printf ''")
   endif
   call s:OutputMessages()
 endfunction
