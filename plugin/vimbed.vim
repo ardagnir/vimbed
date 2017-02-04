@@ -45,6 +45,14 @@ function! s:CharLength(string, pos)
   endif
 endfunction
 
+function! Vimbed_Reset()
+  undojoin | exec "normal! \<ESC>gg\"_dG"
+  if s:slice == 1
+    let s:slice_start = 0
+    let s:slice_end = 1
+  endif
+endfunction
+
 function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
   call s:VerySilent("call Vimbed_UndoJoinedEdit('".s:GetUpdateFile()."')")
 
