@@ -53,7 +53,7 @@ function! Vimbed_Reset()
   endif
 endfunction
 
-function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode)
+function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserveMode, autocmd)
   call s:VerySilent("call Vimbed_UndoJoinedEdit('".s:GetUpdateFile()."')")
 
   "This block of code handles unicode. Our input is in characters but vim
@@ -79,6 +79,9 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
     else
       call system("echo '' > ".s:metaFile)
       call s:WriteFile()
+    endif
+    if a:autocmd != "" && match(a:autocmd, "^[a-zA-Z]*$") > -1
+      exe "doautocmd User Vimbed_".a:autocmd
     endif
     return
   endif
@@ -120,6 +123,9 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
   else
     call system("echo '' > ".s:metaFile)
     call s:WriteFile()
+  endif
+  if a:autocmd != "" && match(a:autocmd, "^[a-zA-Z]*$") > -1
+    exe "doautocmd User Vimbed_".a:autocmd
   endif
 endfunction
 
