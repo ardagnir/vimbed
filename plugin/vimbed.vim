@@ -12,7 +12,7 @@
 " but WITHOUT ANY WARRANTY; without even the implied warranty of
 " MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 " GNU Affero General Public License for more details.
-" 
+"
 " You should have received a copy of the GNU Affero General Public License
 " along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -21,6 +21,7 @@ set cpo&vim
 
 let s:fromCommand = 0
 let s:vim_mode = "n"
+
 
 
 "Replacement for 'edit! s:file' that is undo joined (and doesn't leave the
@@ -120,6 +121,7 @@ function! Vimbed_UpdateText(lineStart, columnStart, lineEnd, columnEnd, preserve
   let s:vim_mode=''
   if s:slice
     call system("echo '' > ".s:sliceFile)
+    call s:WriteSlice(0)
   else
     call system("echo '' > ".s:metaFile)
     call s:WriteFile()
@@ -131,7 +133,7 @@ endfunction
 
 function! s:GetContentsFile()
   if s:includeTabs
-    return "/tmp/vimbed/".tolower(v:servername)."/contents-".bufnr('%').".txt"
+    return "/tmp/vimbed/".tolower(s:servername)."/contents-".bufnr('%').".txt"
   else
     return s:file
   endif
@@ -139,7 +141,7 @@ endfunction
 
 function! s:GetUpdateFile()
   if s:includeTabs
-    return "/tmp/vimbed/".tolower(v:servername)."/update-".bufnr('%').".txt"
+    return "/tmp/vimbed/".tolower(s:servername)."/update-".bufnr('%').".txt"
   else
     return s:updateFile
   endif
@@ -158,6 +160,7 @@ function! Vimbed_SetupVimbed(path, options)
 
   let s:includeTabs = 0
   let s:slice = 0
+  let s:servername = v:servername
   for option in split(a:options, ",")
     if option == "tabs"
       let s:includeTabs = 1
@@ -165,6 +168,8 @@ function! Vimbed_SetupVimbed(path, options)
       let s:slice = 1
       let s:slice_start = 0
       let s:slice_end = 0
+    elseif split(option, "=")[0] == "server"
+      let s:servername = split(option, "=")[1]
     else
       return 1
     endif
@@ -181,24 +186,28 @@ function! Vimbed_SetupVimbed(path, options)
   snoremap <C-]> <Nop>
 
   if s:slice
-    let s:sliceFile = "/tmp/vimbed/".tolower(v:servername)."/slice.txt"
+    let s:sliceFile = "/tmp/vimbed/".tolower(s:servername)."/slice.txt"
   else
     "Contents of the vim buffer
-    let s:file = "/tmp/vimbed/".tolower(v:servername)."/contents.txt"
+    let s:file = "/tmp/vimbed/".tolower(s:servername)."/contents.txt"
 
     "Vim metadata
-    let s:metaFile = "/tmp/vimbed/".tolower(v:servername)."/meta.txt"
+    let s:metaFile = "/tmp/vimbed/".tolower(s:servername)."/meta.txt"
   endif
 
 
   "Messages from vim
-  let s:messageFile = "/tmp/vimbed/".tolower(v:servername)."/messages.txt"
+  let s:messageFile = "/tmp/vimbed/".tolower(s:servername)."/messages.txt"
 
   "Put text in this file before telling vim to update
-  let s:updateFile = "/tmp/vimbed/".tolower(v:servername)."/update.txt"
+  let s:updateFile = "/tmp/vimbed/".tolower(s:servername)."/update.txt"
 
   "Tab info
-  let s:tabFile = "/tmp/vimbed/".tolower(v:servername)."/tabs.txt"
+  let s:tabFile = "/tmp/vimbed/".tolower(s:servername)."/tabs.txt"
+
+  if has('job')
+    call s:SetupExpressionPipe()
+  endif
 
   augroup vimbed
     sil autocmd!
@@ -368,7 +377,6 @@ function! s:GetMetadata(checkInsert)
   endif
   return line1.line2.line3
 endfunction
-
 function! s:WriteMetaFile(checkInsert)
   call system("printf '%s' '".s:GetMetadata(a:checkInsert)."' > ".s:metaFile)
   call s:OutputMessages()
@@ -379,7 +387,7 @@ let s:old_slice_text=""
 function! s:WriteSlice(checkInsert)
   let metadata = s:GetMetadata(a:checkInsert)
   let slice_text = join(getline(s:slice_start+1, s:slice_end+1), "\n")
-  if metadata!=s:old_meta || slice_text!=s:old_slice_text
+  if metadata!=#s:old_meta || slice_text!=#s:old_slice_text
     let s:old_meta = metadata
     let s:old_slice_text = slice_text
     call system("printf '%s%s' '" . metadata . "' ".s:ShellEscapeWithNewLines(slice_text) . " > ".s:sliceFile)
@@ -430,7 +438,7 @@ function! Vimbed_UpdateTabs(activeTab, tabList, loadFiles)
       endif
     endif
     if a:loadFiles
-      let fileName="/tmp/vimbed/".tolower(v:servername)."/tabin-".currentFile.".txt"
+      let fileName="/tmp/vimbed/".tolower(s:servername)."/tabin-".currentFile.".txt"
       call s:VerySilent("call Vimbed_UndoJoinedEdit('".fileName."')")
       call s:WriteFile()
       call system("rm ".fileName)
@@ -470,6 +478,34 @@ function! s:OutputMessages()
   redir END
   echo ''
   exec "redir! >> ".s:messageFile
+endfunction
+
+function! Vimbed_RunExpr(channel, msg)
+  let g:lid = reltime()[0]
+  let cpos = stridx(a:msg, ':')
+  call eval(a:msg[cpos+1:])
+  let mn = str2nr(a:msg[0:cpos])
+  if s:curmesg < mn
+    let s:curmesg = mn
+  endif
+  call system("echo '" . s:curmesg . "' > " . s:messageCountFile)
+endfunction
+
+" Gets expressions from a pipe and executes them.
+" This allows us to get remote-expr like behavior in vim8 without
+" using clientserver.
+function! s:SetupExpressionPipe()
+  let s:curmesg = 0
+  let s:exprPipeFile = "/tmp/vimbed/".tolower(s:servername)."/exprPipe"
+  let s:messageCountFile = "/tmp/vimbed/".tolower(s:servername)."/messageCount.txt"
+
+  let s:job = job_start(['cat', s:exprPipeFile] , {"out_cb": "Vimbed_RunExpr", "close_cb": "Vimbed_SetupExpressionPipe"})
+endfunction
+
+function! Vimbed_SetupExpressionPipe(channel)
+  if ch_status(s:job) == "closed"
+    call s:SetupExpressionPipe()
+  endif
 endfunction
 
 let g:loaded_vimbed = 1
