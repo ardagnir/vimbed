@@ -503,9 +503,7 @@ function! s:SetupExpressionPipe()
 endfunction
 
 function! Vimbed_SetupExpressionPipe(channel)
-  if ch_status(s:job) == "closed"
-    call s:SetupExpressionPipe()
-  endif
+  call s:SetupExpressionPipe()
 endfunction
 
 let g:loaded_vimbed = 1
