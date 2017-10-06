@@ -133,7 +133,7 @@ endfunction
 
 function! s:GetContentsFile()
   if s:includeTabs
-    return "/tmp/vimbed/".tolower(s:servername)."/contents-".bufnr('%').".txt"
+    return s:dirname . "/contents-".bufnr('%').".txt"
   else
     return s:file
   endif
@@ -141,13 +141,13 @@ endfunction
 
 function! s:GetUpdateFile()
   if s:includeTabs
-    return "/tmp/vimbed/".tolower(s:servername)."/update-".bufnr('%').".txt"
+    return s:dirname . "/update-".bufnr('%').".txt"
   else
     return s:updateFile
   endif
 endfunction
 
-function! Vimbed_SetupVimbed(path, options)
+function! Vimbed_SetupVimbed(path, dirname, options)
   set noswapfile
   set shortmess+=A
   set noshowmode
@@ -158,9 +158,9 @@ function! Vimbed_SetupVimbed(path, options)
     exec "edit ".a:path
   endif
 
+  let s:dirname = a:dirname
   let s:includeTabs = 0
   let s:slice = 0
-  let s:servername = v:servername
   for option in split(a:options, ",")
     if option == "tabs"
       let s:includeTabs = 1
@@ -168,8 +168,6 @@ function! Vimbed_SetupVimbed(path, options)
       let s:slice = 1
       let s:slice_start = 0
       let s:slice_end = 0
-    elseif split(option, "=")[0] == "server"
-      let s:servername = split(option, "=")[1]
     else
       return 1
     endif
@@ -186,24 +184,24 @@ function! Vimbed_SetupVimbed(path, options)
   snoremap <C-]> <Nop>
 
   if s:slice
-    let s:sliceFile = "/tmp/vimbed/".tolower(s:servername)."/slice.txt"
+    let s:sliceFile = s:dirname . "/slice.txt"
   else
     "Contents of the vim buffer
-    let s:file = "/tmp/vimbed/".tolower(s:servername)."/contents.txt"
+    let s:file = s:dirname . "/contents.txt"
 
     "Vim metadata
-    let s:metaFile = "/tmp/vimbed/".tolower(s:servername)."/meta.txt"
+    let s:metaFile = s:dirname . "/meta.txt"
   endif
 
 
   "Messages from vim
-  let s:messageFile = "/tmp/vimbed/".tolower(s:servername)."/messages.txt"
+  let s:messageFile = s:dirname . "/messages.txt"
 
   "Put text in this file before telling vim to update
-  let s:updateFile = "/tmp/vimbed/".tolower(s:servername)."/update.txt"
+  let s:updateFile = s:dirname . "/update.txt"
 
   "Tab info
-  let s:tabFile = "/tmp/vimbed/".tolower(s:servername)."/tabs.txt"
+  let s:tabFile = s:dirname . "/tabs.txt"
 
   if has('job')
     call s:SetupExpressionPipe()
@@ -438,7 +436,7 @@ function! Vimbed_UpdateTabs(activeTab, tabList, loadFiles)
       endif
     endif
     if a:loadFiles
-      let fileName="/tmp/vimbed/".tolower(s:servername)."/tabin-".currentFile.".txt"
+      let fileName = s:dirname . "/tabin-".currentFile.".txt"
       call s:VerySilent("call Vimbed_UndoJoinedEdit('".fileName."')")
       call s:WriteFile()
       call system("rm ".fileName)
@@ -496,8 +494,8 @@ endfunction
 " using clientserver.
 function! s:SetupExpressionPipe()
   let s:curmesg = 0
-  let s:exprPipeFile = "/tmp/vimbed/".tolower(s:servername)."/exprPipe"
-  let s:messageCountFile = "/tmp/vimbed/".tolower(s:servername)."/messageCount.txt"
+  let s:exprPipeFile = s:dirname . "/exprPipe"
+  let s:messageCountFile = s:dirname . "/messageCount.txt"
 
   let s:job = job_start(['cat', s:exprPipeFile] , {"out_cb": "Vimbed_RunExpr", "close_cb": "Vimbed_SetupExpressionPipe"})
 endfunction
