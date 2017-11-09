@@ -496,7 +496,16 @@ function! s:SetupExpressionPipe()
   let s:curmesg = 0
   let s:exprPipeFile = s:dirname . "/exprPipe"
   let s:messageCountFile = s:dirname . "/messageCount.txt"
-
+  let misscount = 0
+  while system('ls ' . shellescape(s:exprPipeFile). " >/dev/null") != ""
+    let misscount+=1
+    " If we haven't used this in a while, we're probably in another program. No need to poll so hard.
+    if misscount > 20
+      sleep 500m
+    else
+      sleep 50m
+    endif
+  endwhile
   let s:job = job_start(['cat', s:exprPipeFile] , {"out_cb": "Vimbed_RunExpr", "close_cb": "Vimbed_SetupExpressionPipe"})
 endfunction
 
