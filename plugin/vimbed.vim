@@ -203,8 +203,13 @@ function! Vimbed_SetupVimbed(path, dirname, options)
   "Tab info
   let s:tabFile = s:dirname . "/tabs.txt"
 
-  if has('job')
+  if has('job') || has('nvim')
     call s:SetupExpressionPipe()
+  endif
+
+  if has('nvim')
+    let nvimFile = s:dirname . '/nvim'
+    call system('touch ' . shellescape(nvimFile))
   endif
 
   augroup vimbed
@@ -506,10 +511,26 @@ function! s:SetupExpressionPipe()
       sleep 50m
     endif
   endwhile
-  let s:job = job_start(['cat', s:exprPipeFile] , {"out_cb": "Vimbed_RunExpr", "close_cb": "Vimbed_SetupExpressionPipe"})
+  if has('nvim')
+    let s:job = jobstart(['cat', s:exprPipeFile] , {"on_stdout": function("s:NvimRunExpr"), "on_exit": function("s:NvimSetupExpressionPipe")})
+  else
+    let s:job = job_start(['cat', s:exprPipeFile] , {"out_cb": "Vimbed_RunExpr", "close_cb": "Vimbed_SetupExpressionPipe"})
+  endif
 endfunction
 
 function! Vimbed_SetupExpressionPipe(channel)
+  call s:SetupExpressionPipe()
+endfunction
+
+function! s:NvimRunExpr(job_id, dat, event) dict
+  for line in a:dat
+    if line != ''
+      call Vimbed_RunExpr(a:job_id, line)
+    endif
+  endfor
+endfunction
+
+function! s:NvimSetupExpressionPipe(job_id, dat, event) dict
   call s:SetupExpressionPipe()
 endfunction
 
