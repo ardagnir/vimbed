@@ -223,6 +223,11 @@ function! Vimbed_SetupVimbed(path, dirname, options)
       sil exec "autocmd InsertEnter * call <SID>WriteSlice(1)"
       sil exec "autocmd InsertLeave * call <SID>WriteSlice(0)"
       sil exec "autocmd InsertChange * call <SID>WriteSlice(1)"
+      if v:version>=801 || (v:version==800 && has("patch1445"))
+        sil exec "autocmd CmdlineChanged * call <SID>WriteSlice(0)"
+        sil exec "autocmd CmdlineEnter * call <SID>WriteSlice(0)"
+        sil exec "autocmd CmdlineLeave * call <SID>WriteSlice(0)"
+      endif
       sil exec "autocmd VimLeave * call <SID>VimLeave('".s:sliceFile."')"
     else
       sil exec "sil autocmd TextChanged * call <SID>WriteFile()"
@@ -235,6 +240,11 @@ function! Vimbed_SetupVimbed(path, dirname, options)
       sil exec "autocmd InsertEnter * call <SID>WriteMetaFile(1)"
       sil exec "autocmd InsertLeave * call <SID>WriteMetaFile(0)"
       sil exec "autocmd InsertChange * call <SID>WriteMetaFile(1)"
+      if v:version>=801 || (v:version==800 && has("patch1445"))
+        sil exec "autocmd CmdlineChanged * call <SID>WriteMetaFile(0)"
+        sil exec "autocmd CmdlineEnter * call <SID>WriteSlice(0)"
+        sil exec "autocmd CmdlineLeave * call <SID>WriteSlice(0)"
+      endif
       sil exec "autocmd VimLeave * call <SID>VimLeave('".s:metaFile."')"
     endif
 
