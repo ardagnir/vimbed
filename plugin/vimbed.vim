@@ -242,8 +242,8 @@ function! Vimbed_SetupVimbed(path, dirname, options)
       sil exec "autocmd InsertChange * call <SID>WriteMetaFile(1)"
       if v:version>=801 || (v:version==800 && has("patch1445"))
         sil exec "autocmd CmdlineChanged * call <SID>WriteMetaFile(0)"
-        sil exec "autocmd CmdlineEnter * call <SID>WriteSlice(0)"
-        sil exec "autocmd CmdlineLeave * call <SID>WriteSlice(0)"
+        sil exec "autocmd CmdlineEnter * call <SID>WriteMetaFile(0)"
+        sil exec "autocmd CmdlineLeave * call <SID>WriteMetaFile(0)"
       endif
       sil exec "autocmd VimLeave * call <SID>VimLeave('".s:metaFile."')"
     endif
@@ -255,6 +255,33 @@ function! Vimbed_SetupVimbed(path, dirname, options)
     endif
   augroup END
   return 0
+endfunction
+
+" Vim triggers cmdline autocmds during mappings, even when the mapping is
+" silent, so if you want to make a really silent mapping in Athame, you need
+" to replace
+" map <silent> a b
+" with
+" map <silent> <expr> a Vimbed_SupressCmdline("b")
+function! Vimbed_SupressCmdline(passthrough)
+  if v:version>=801 || (v:version==800 && has("patch1445"))
+    sil! autocmd! vimbed CmdlineChanged
+    sil! autocmd! vimbed CmdlineEnter
+    sil! autocmd! vimbed CmdlineLeave
+    sil! exec "autocmd CmdlineLeave * call <SID>RestoreCommandline()"
+    return a:passthrough
+  endif
+endfunction
+
+function! s:RestoreCommandline()
+  if v:version>=801 || (v:version==800 && has("patch1445"))
+    autocmd! vimbed CmdlineLeave
+    augroup vimbed
+    sil exec "autocmd CmdlineChanged * call <SID>WriteSlice(0)"
+    sil exec "autocmd CmdlineEnter * call <SID>WriteSlice(0)"
+    sil exec "autocmd CmdlineLeave * call <SID>WriteSlice(0)"
+    augroup END
+  endif
 endfunction
 
 function! Vimbed_Poll()
