@@ -262,8 +262,8 @@ endfunction
 " to replace
 " map <silent> a b
 " with
-" map <silent> <expr> a Vimbed_SupressCmdline("b")
-function! Vimbed_SupressCmdline(passthrough)
+" map <silent> <expr> a Vimbed_SuppressCmdline("b")
+function! Vimbed_SuppressCmdline(passthrough)
   if v:version>=801 || (v:version==800 && has("patch1445"))
     sil! autocmd! vimbed CmdlineChanged
     sil! autocmd! vimbed CmdlineEnter
